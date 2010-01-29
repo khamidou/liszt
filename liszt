@@ -1,0 +1,61 @@
+#!/usr/bin/env python
+# 
+import sys
+import os
+from datetime import datetime
+import urllib, urllib2
+import ConfigParser
+
+
+if sys.version_info[1] < 6: # py2.5-
+    import simplejson as json                                                                                                                         
+else: # py2.6
+    import json 
+
+base = "http://0.0.0.0:8080/api"
+
+conf = ConfigParser.RawConfigParser()
+conf.read(os.path.expanduser('~/.liszt.conf'))
+
+def help():
+    print "liszt create"
+    
+def login(username, password):
+    data = urllib.urlencode({"username" : username, "password" : password})
+    req = urllib2.urlopen(base + "/login/", data)
+    pass
+
+def create(listname, entryname=""):
+    if entryname == "":
+        req = urllib2.urlopen(base + "/create/" + listname + "/")
+    else:
+        req = urllib2.urlopen(base + "/create/" + listname + "/" + entryname + "/")
+
+def parse_create(args):
+    
+    print args
+
+def parse_remove(args):
+    pass
+
+def parse_show(args):
+    
+    pass
+
+dispatch = {"create" : parse_create,
+            "remove" : parse_remove,
+            "show" : parse_show, }
+
+if __name__ == "__main__":
+
+    if len(sys.argv) <= 1:
+        help()
+        sys.exit(0)
+
+    login("a", "a")
+    create("travail")
+    if sys.argv[1] in dispatch:
+        dispatch[sys.argv[1]](sys.argv[2:])
+    else:
+        # Assume the user just wants to see a list
+        parse_show(sys.argv[2:])
