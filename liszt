@@ -3,9 +3,9 @@
 import sys
 import os
 from datetime import datetime
-import urllib, urllib2
+import urllib, urllib2, cookielib
+from urllib import quote
 import ConfigParser
-
 
 if sys.version_info[1] < 6: # py2.5-
     import simplejson as json                                                                                                                         
@@ -15,25 +15,59 @@ else: # py2.6
 base = "http://0.0.0.0:8080/api"
 
 conf = ConfigParser.RawConfigParser()
-conf.read(os.path.expanduser('~/.liszt.conf'))
+conf.read(os.path.expanduser('~/.liszt/config'))
+
+def bailout(msg):
+    print msg
+    sys.exit(-1)
+
+class LisztSession:
+    def __init__(self):
+
+        self.jar = cookielib.LWPCookieJar()
+        if os.path.isfile('~/.liszt/cookiejar'):
+            self.jar.load('~/.liszt/cookiejar')
+
+        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.jar))
+        urllib2.install_opener(self.opener)
+    
+    def login(self, username, password):
+        d = {'username' : username, 'password': password}
+        ed = urllib.urlencode(d)
+        try:
+            urllib2.urlopen(base + "/login/", ed)
+        except HTTPError:
+            bailout("Unable to log you in - are you credentials correct ?")
+
+    def create_list(self, listname):
+        try:
+            urllib2.urlopen(base + "/create/" + quote(listname) + "/")
+        except HTTPError:
+            bailout("Unable to create the list " + listname)
+
+    def create_list_entry(self, listname, entry):
+        try:
+            urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
+        except HTTPError:
+            bailout("Unable to create the list " + listname)
+
+    def show_list(self, listname):
+        try:
+            req = urllib2.urlopen(base + "/get/" + quote(listname) + "/")
+        except HTTPError:
+            bailout("Unable to open the list " + listname)
+
+        entries = json.load(req)
+
+        for entry in entries["contents"]:
+            print entry["title"] + "\t" + entry["date"]
+            
 
 def help():
     print "liszt create"
-    
-def login(username, password):
-    data = urllib.urlencode({"username" : username, "password" : password})
-    req = urllib2.urlopen(base + "/login/", data)
-    pass
-
-def create(listname, entryname=""):
-    if entryname == "":
-        req = urllib2.urlopen(base + "/create/" + listname + "/")
-    else:
-        req = urllib2.urlopen(base + "/create/" + listname + "/" + entryname + "/")
 
 def parse_create(args):
-    
-    print args
+    pass
 
 def parse_remove(args):
     pass
@@ -52,10 +86,12 @@ if __name__ == "__main__":
         help()
         sys.exit(0)
 
-    login("a", "a")
-    create("travail")
-    if sys.argv[1] in dispatch:
-        dispatch[sys.argv[1]](sys.argv[2:])
-    else:
-        # Assume the user just wants to see a list
-        parse_show(sys.argv[2:])
+    session = LisztSession()
+    session.login("s", "s")
+    session.show_list("travail")
+
+#     if sys.argv[1] in dispatch:
+#         dispatch[sys.argv[1]](sys.argv[2:])
+#     else:
+#         # Assume the user just wants to see a list
+#         parse_show(sys.argv[2:])
