@@ -62,9 +62,24 @@ class LisztSession:
         for entry in entries["contents"]:
             print entry["title"] + "\t" + entry["date"]
             
+    def remove_list(self, listname):
+        try:
+            urllib2.urlopen(base + "/remove/" + quote(listname) + "/")
+        except HTTPError:
+            bailout("Unable to remove the list " + listname)
 
+    def remove_list_entry(self, listname, index):
+        try:
+            urllib2.urlopen(base + "/remove/" + quote(listname) + "/" + quote(index) + "/")
+        except HTTPError:
+            bailout("Unable to create the list " + listname)
+        
 def help():
-    print "liszt create"
+    print "liszt c|create listname ?entryname? "
+    print "liszt r[remove|d|delete listname ?entryindex?"
+    print "liszt s listname ?entryindex?"
+    print "liszt chk|check listname index"
+    print "liszt m|mod|modify listname index ?'new description'? ?'check'? ?'date'?"
 
 def parse_create(args):
     pass
@@ -90,8 +105,8 @@ if __name__ == "__main__":
     session.login("s", "s")
     session.show_list("travail")
 
-#     if sys.argv[1] in dispatch:
-#         dispatch[sys.argv[1]](sys.argv[2:])
-#     else:
-#         # Assume the user just wants to see a list
-#         parse_show(sys.argv[2:])
+    if sys.argv[1] in dispatch:
+        dispatch[sys.argv[1]](sys.argv[2:])
+    else:
+        # Assume the user just wants to see a list
+        parse_show(sys.argv[2:])
