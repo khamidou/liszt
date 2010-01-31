@@ -1,3 +1,1 @@
-This is liszt.
-
-It requires simplejson and dateutil.
+This is liszt, a command line interface to the todoliszt.com api.

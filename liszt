@@ -5,6 +5,9 @@ import os
 from datetime import datetime
 import urllib, urllib2, cookielib
 from urllib import quote
+from urllib2 import HTTPError
+import fnmatch
+
 import ConfigParser
 
 if sys.version_info[1] < 6: # py2.5-
@@ -52,8 +55,10 @@ class LisztSession:
             bailout("Unable to create the list " + listname)
 
     def show_list(self, listname):
+        ln = self.glob_listname(listname)
+
         try:
-            req = urllib2.urlopen(base + "/get/" + quote(listname) + "/")
+            req = urllib2.urlopen(base + "/get/" + quote(ln) + "/")
         except HTTPError:
             bailout("Unable to open the list " + listname)
 
@@ -73,7 +78,37 @@ class LisztSession:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/" + quote(index) + "/")
         except HTTPError:
             bailout("Unable to create the list " + listname)
+
+    def glob_listname(self, pattern):
         
+        def match_listname(l):
+            # This function doesn't seem very pythonic...
+            if len(l) > 1:
+                print str(len(l)) + " lists satifisfy the pattern : "
+                print l
+
+                try:
+                    pat = raw_input("Enter a matching pattern to clarify your choice : ")
+                except EOFError:
+                    sys.exit(-1)
+
+                return match_listname(fnmatch.filter(l, pat))
+            else:
+                return l[0]
+
+        try:
+            req = urllib2.urlopen(base + "/getlists/")
+            lists = json.load(req)
+            res = fnmatch.filter(lists, pattern)
+
+            if len(res) > 1:
+                return match_listname(res)
+            else:
+                return res[0]
+
+        except HTTPError:
+            bailout("Unable to glob list pattern")
+
 def help():
     print "liszt c|create listname ?entryname? "
     print "liszt r[remove|d|delete listname ?entryindex?"
@@ -97,16 +132,16 @@ dispatch = {"create" : parse_create,
 
 if __name__ == "__main__":
 
-    if len(sys.argv) <= 1:
-        help()
-        sys.exit(0)
+#     if len(sys.argv) <= 1:
+#         help()
+#         sys.exit(0)
 
     session = LisztSession()
     session.login("s", "s")
-    session.show_list("travail")
+    session.show_list("*")
 
-    if sys.argv[1] in dispatch:
-        dispatch[sys.argv[1]](sys.argv[2:])
-    else:
-        # Assume the user just wants to see a list
-        parse_show(sys.argv[2:])
+#     if sys.argv[1] in dispatch:
+#         dispatch[sys.argv[1]](sys.argv[2:])
+#     else:
+#         # Assume the user just wants to see a list
+#         parse_show(sys.argv[2:])
