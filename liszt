@@ -11,10 +11,11 @@ import operator
 
 import ConfigParser
 
-if sys.version_info[1] < 6: # py2.5-
-    import simplejson as json                                                                                                                         
-else: # py2.6
+try:
     import json 
+except ImportError:
+    import simplejson as json                                                                                                                         
+
 
 base = "http://0.0.0.0:8080/api"
 
@@ -43,7 +44,7 @@ class LisztSession:
                 sys.exit(0)
             else:
                 func(instance, *args)
-
+                sys.exit(0)
         return wrapper
 
     def login(self, username, password):
@@ -56,21 +57,26 @@ class LisztSession:
         except URLError:
             bailout("Unable to connect to the remote host.")
 
-    @snappy
     def create_list(self, listname):
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/")
         except HTTPError:
             bailout("Unable to create the list " + listname)
 
-    @snappy
     def create_list_entry(self, listname, entry):
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
         except HTTPError:
             bailout("Unable to create the list entry in list " + listname)
 
-    @snappy
+    def get_lists_list(self):
+        try:
+            req = urllib2.urlopen(base + "/getlists/")
+        except HTTPError:
+            bailout("Unable to get a list of the available lists")
+            
+        return json.load(req)
+
     def show_list(self, listname):
         ln = self.glob_listname(listname)
 
@@ -83,15 +89,25 @@ class LisztSession:
 
         for entry in entries["contents"]:
             print entry["title"] + "\t" + entry["date"]
-           
-    @snappy
+
+    def show_entry(self, listname, index):
+        ln = self.glob_listname(listname)
+
+        try:
+            req = urllib2.urlopen(base + "/get/" + quote(ln) + "/" + str(index) + "/")
+        except HTTPError:
+            bailout("Unable to get entry " + str(index) + " from list " + listname)
+
+        entry = json.load(req)
+
+        print entry["title"] + "\t" + entry["date"]
+
     def remove_list(self, listname):
         try:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/")
         except HTTPError:
             bailout("Unable to remove the list " + listname)
 
-    @snappy
     def remove_list_entry(self, listname, index):
         try:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/" + quote(index) + "/")
@@ -116,8 +132,7 @@ class LisztSession:
                 return l[0]
 
         try:
-            req = urllib2.urlopen(base + "/getlists/")
-            lists = json.load(req)
+            lists = self.get_lists_list()
             res = fnmatch.filter(lists, pattern)
 
             if len(res) > 1:
@@ -131,8 +146,13 @@ class LisztSession:
 class CommandParser(object):
     def __init__(self, args):
         self.dispatch = {"create" : self.parse_create,
+                         "c" : self.parse_create,
+                         "touch" : self.parse_create,
                          "remove" : self.parse_remove,
-                         "show" :   self.parse_show, }
+                         "rem" : self.parse_remove,
+                         "rm" : self.parse_remove,
+                         "show" :   self.parse_show, 
+                         "s" :   self.parse_show, }
 
         if args[0] in self.dispatch:
             self.dispatch[args[0]](args[1:])
@@ -168,19 +188,43 @@ class CommandParser(object):
         else:
             session.create_list_entry(listname, entryname)
 
+    def parse_show(self, args):
+        listname = ""
+        entryname = ""
+
+        if len(args) == 0:
+            for list in session.get_lists_list():
+                print list
+
+        if len(args) == 1:
+            session.show_list(args[0])
+        elif len(args) == 2:
+            session.show_entry(args[0], args[1])
+
+
     def parse_remove(self, args):
+        listname = ""
+        entryname = ""
+
+        if len(args) == 0:
+            bailout("liszt rm listname [optional entry index]")
+
+        if len(args) == 1:
+            session.remove_list(args[0])
+            print "removed list " + args[0]
+
+        elif len(args) == 2:
+            session.remove_list_entry(args[0], args[1])
+            print "removed from list " + listname + "entry #" + args[1] 
         pass
     
-    def parse_show(self, args):
-        
-        pass
 
 
 if __name__ == "__main__":
 
-#     if len(sys.argv) <= 1:
-#         help()
-#         sys.exit(0)
+    if len(sys.argv) <= 1:
+        help()
+        sys.exit(0)
 
     session = LisztSession()
     session.login(username, password)
