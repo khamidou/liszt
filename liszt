@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 import urllib, urllib2, cookielib
 from urllib import quote
-from urllib2 import HTTPError
+from urllib2 import HTTPError, URLError
 import fnmatch
 
 import ConfigParser
@@ -19,6 +19,8 @@ base = "http://0.0.0.0:8080/api"
 
 conf = ConfigParser.RawConfigParser()
 conf.read(os.path.expanduser('~/.liszt/config'))
+username = conf.get('Credentials', 'username')
+password = conf.get('Credentials', 'password')
 
 def bailout(msg):
     print msg
@@ -41,6 +43,8 @@ class LisztSession:
             urllib2.urlopen(base + "/login/", ed)
         except HTTPError:
             bailout("Unable to log you in - are you credentials correct ?")
+        except URLError:
+            bailout("Unable to connect to the remote host.")
 
     def create_list(self, listname):
         try:
@@ -109,22 +113,23 @@ class LisztSession:
         except HTTPError:
             bailout("Unable to glob list pattern")
 
-def help():
-    print "liszt c|create listname ?entryname? "
-    print "liszt r[remove|d|delete listname ?entryindex?"
-    print "liszt s listname ?entryindex?"
-    print "liszt chk|check listname index"
-    print "liszt m|mod|modify listname index ?'new description'? ?'check'? ?'date'?"
+class CommandParser(object):
 
-def parse_create(args):
-    pass
-
-def parse_remove(args):
-    pass
-
-def parse_show(args):
+    def help():
+        print "liszt c|create listname ?entryname? "
+        print "liszt r[remove|d|delete listname ?entryindex?"
+        print "liszt s listname ?entryindex?"
+        print "liszt chk|check listname index"
+        print "liszt~ m|mod|modify listname index ?'new description'? ?'check'? ?'date'?"
     
-    pass
+        def parse_create(args):
+            pass
+
+        def parse_remove(args):
+            pass
+
+        def parse_show(args):
+            pass
 
 dispatch = {"create" : parse_create,
             "remove" : parse_remove,
@@ -137,8 +142,8 @@ if __name__ == "__main__":
 #         sys.exit(0)
 
     session = LisztSession()
-    session.login("s", "s")
-    session.show_list("*")
+    session.login(username, password)
+
 
 #     if sys.argv[1] in dispatch:
 #         dispatch[sys.argv[1]](sys.argv[2:])
