@@ -229,9 +229,3 @@ if __name__ == "__main__":
     session = LisztSession()
     session.login(username, password)
     parser = CommandParser(sys.argv[1:])
-
-#     if sys.argv[1] in dispatch:
-#         dispatch[sys.argv[1]](sys.argv[2:])
-#     else:
-#         # Assume the user just wants to see a list
-#         parse_show(sys.argv[2:])
