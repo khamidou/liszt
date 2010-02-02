@@ -7,6 +7,7 @@ import urllib, urllib2, cookielib
 from urllib import quote
 from urllib2 import HTTPError, URLError
 import fnmatch
+import operator
 
 import ConfigParser
 
@@ -35,7 +36,16 @@ class LisztSession:
 
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.jar))
         urllib2.install_opener(self.opener)
-    
+
+    def snappy(func):
+        def wrapper(instance, *args):
+            if os.fork():
+                sys.exit(0)
+            else:
+                func(instance, *args)
+
+        return wrapper
+
     def login(self, username, password):
         d = {'username' : username, 'password': password}
         ed = urllib.urlencode(d)
@@ -46,18 +56,21 @@ class LisztSession:
         except URLError:
             bailout("Unable to connect to the remote host.")
 
+    @snappy
     def create_list(self, listname):
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/")
         except HTTPError:
             bailout("Unable to create the list " + listname)
 
+    @snappy
     def create_list_entry(self, listname, entry):
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
         except HTTPError:
-            bailout("Unable to create the list " + listname)
+            bailout("Unable to create the list entry in list " + listname)
 
+    @snappy
     def show_list(self, listname):
         ln = self.glob_listname(listname)
 
@@ -70,18 +83,20 @@ class LisztSession:
 
         for entry in entries["contents"]:
             print entry["title"] + "\t" + entry["date"]
-            
+           
+    @snappy
     def remove_list(self, listname):
         try:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/")
         except HTTPError:
             bailout("Unable to remove the list " + listname)
 
+    @snappy
     def remove_list_entry(self, listname, index):
         try:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/" + quote(index) + "/")
         except HTTPError:
-            bailout("Unable to create the list " + listname)
+            bailout("Unable to remove the entry " + index + "from list " + listname)
 
     def glob_listname(self, pattern):
         
@@ -114,6 +129,13 @@ class LisztSession:
             bailout("Unable to glob list pattern")
 
 class CommandParser(object):
+    def __init__(self, args):
+        self.dispatch = {"create" : self.parse_create,
+                         "remove" : self.parse_remove,
+                         "show" :   self.parse_show, }
+
+        if args[0] in self.dispatch:
+            self.dispatch[args[0]](args[1:])
 
     def help():
         print "liszt c|create listname ?entryname? "
@@ -122,18 +144,37 @@ class CommandParser(object):
         print "liszt chk|check listname index"
         print "liszt~ m|mod|modify listname index ?'new description'? ?'check'? ?'date'?"
     
-        def parse_create(args):
-            pass
+    def parse_create(self, args):
+        listname = ""
+        entryname = ""
 
-        def parse_remove(args):
-            pass
+        if len(args) == 0:
+            bailout("liszt create listname [optional entry name]")
 
-        def parse_show(args):
-            pass
+        listname = args[0]
 
-dispatch = {"create" : parse_create,
-            "remove" : parse_remove,
-            "show" : parse_show, }
+        if len(args) == 2:
+            entryname = args[1]
+        elif len(args) > 2:
+            # It means that we've got something like "liszt create mylist buy something from the grocery store"
+            def addstr(x, y):
+                # A special function to add spaces between to added words - yes, it doesn't preserve tabulations and the likes,
+                # but, you asked for it.
+                return x + " " + y
+            entryname = reduce(addstr, args[1:])
+        
+        if entryname == "":
+            session.create_list(listname)
+        else:
+            session.create_list_entry(listname, entryname)
+
+    def parse_remove(self, args):
+        pass
+    
+    def parse_show(self, args):
+        
+        pass
+
 
 if __name__ == "__main__":
 
@@ -143,7 +184,7 @@ if __name__ == "__main__":
 
     session = LisztSession()
     session.login(username, password)
-
+    parser = CommandParser(sys.argv[1:])
 
 #     if sys.argv[1] in dispatch:
 #         dispatch[sys.argv[1]](sys.argv[2:])
