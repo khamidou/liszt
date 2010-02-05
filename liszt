@@ -249,9 +249,9 @@ class CommandParser(object):
                 if len(fields) != 4:
                     bailout("Error : one of the fields is not correctly formatted.") # FIXME : display the line number too.
 
-                dict = { "entry" : json.dumps({"title" : fields[1], "date" : fields[2], "done": fields[3]})}
+                dict = {"title" : fields[1], "date" : fields[2], "done": fields[3]}
                 print dict
-                session.update_list_entry(listname, i, { "entry" : dict })
+                session.update_list_entry(listname, i, dict)
 
 
 if __name__ == "__main__":
