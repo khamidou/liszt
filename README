@@ -1,1 +1,37 @@
 This is liszt, a command line interface to the todoliszt.com api.
+
+liszt supports (at the moment) three modes of operation : showing, creating, removing a list or
+an element of a list.
+
+Basic Usage
+===========
+
+* Creating a list
+
+  liszt create "my list"
+  Shortcuts : instead of "create", "c"
+  	      if the name of the list is a single word, you can get rid of the quotation marks.
+
+* Creating a entry in an already existing list
+  
+  liszt create "my list" "my entry"
+  Shortcuts : you can ommit the quotation marks altogether. Liszt will assume that the name of the list is a 
+  	      single word and add the rest of the words to the contents of the entry.
+
+* Getting the contents of a list
+
+  liszt show "my list" gets the contents of the list "my list".
+  Shortcuts : the name of the list is globbable (liszt show "my *" will print the same results) - if there are multiple matches, 
+  	      liszt will ask you a globbing sub-pattern to narrow down the search.
+  
+* Getting the contents of an entry
+
+  liszt show "my list" entry_index displays the contents of the entry #entry_index.
+  
+  The format of output of an entry is first the index of the entry in the list, then its description, its creation date and finally if it's done.
+  The fields are separated by tabs.
+
+* Removing a list
+
+  list remove "my list"
+  list remove "my list" entry_index

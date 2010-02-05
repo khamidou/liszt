@@ -17,7 +17,7 @@ except ImportError:
     import simplejson as json                                                                                                                         
 
 
-base = "http://0.0.0.0:8080/api"
+base = "http://todoliszt.com/api/v1"
 
 conf = ConfigParser.RawConfigParser()
 conf.read(os.path.expanduser('~/.liszt/config'))
