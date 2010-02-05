@@ -7,7 +7,7 @@ import urllib, urllib2, cookielib
 from urllib import quote
 from urllib2 import HTTPError, URLError
 import fnmatch
-import operator
+import tempfile
 
 import ConfigParser
 
@@ -17,7 +17,7 @@ except ImportError:
     import simplejson as json                                                                                                                         
 
 
-base = "http://todoliszt.com/api/v1"
+base = "http://soundbush.com:8080/api/v1"
 
 conf = ConfigParser.RawConfigParser()
 conf.read(os.path.expanduser('~/.liszt/config'))
@@ -37,15 +37,6 @@ class LisztSession:
 
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.jar))
         urllib2.install_opener(self.opener)
-
-    def snappy(func):
-        def wrapper(instance, *args):
-            if os.fork():
-                sys.exit(0)
-            else:
-                func(instance, *args)
-                sys.exit(0)
-        return wrapper
 
     def login(self, username, password):
         d = {'username' : username, 'password': password}
@@ -77,7 +68,7 @@ class LisztSession:
             
         return json.load(req)
 
-    def show_list(self, listname):
+    def get_list(self, listname):
         ln = self.glob_listname(listname)
 
         try:
@@ -85,12 +76,9 @@ class LisztSession:
         except HTTPError:
             bailout("Unable to open the list " + listname)
 
-        entries = json.load(req)
+        return json.load(req)
 
-        for entry in entries["contents"]:
-            print entry["title"] + "\t" + entry["date"]
-
-    def show_entry(self, listname, index):
+    def get_entry(self, listname, index):
         ln = self.glob_listname(listname)
 
         try:
@@ -98,9 +86,7 @@ class LisztSession:
         except HTTPError:
             bailout("Unable to get entry " + str(index) + " from list " + listname)
 
-        entry = json.load(req)
-
-        print entry["title"] + "\t" + entry["date"]
+        return json.load(req)
 
     def remove_list(self, listname):
         try:
@@ -114,6 +100,13 @@ class LisztSession:
         except HTTPError:
             bailout("Unable to remove the entry " + index + "from list " + listname)
 
+    def update_list_entry(self, listname, index, contents):
+        ec = urllib.urlencode(contents)
+        try:
+            urllib2.urlopen(base + "/update/" + listname + "/" + str(index) + "/", ec)
+        except HTTPError:
+            bailout("Unable to update the list entry")
+        
     def glob_listname(self, pattern):
         
         def match_listname(l):
@@ -152,7 +145,9 @@ class CommandParser(object):
                          "rem" : self.parse_remove,
                          "rm" : self.parse_remove,
                          "show" :   self.parse_show, 
-                         "s" :   self.parse_show, }
+                         "s" :   self.parse_show,
+                         "update" : self.parse_update,
+                      }
 
         if args[0] in self.dispatch:
             self.dispatch[args[0]](args[1:])
@@ -197,10 +192,14 @@ class CommandParser(object):
                 print list
 
         if len(args) == 1:
-            session.show_list(args[0])
-        elif len(args) == 2:
-            session.show_entry(args[0], args[1])
+            entries = session.get_list(args[0])
 
+            for entry in entries["contents"]:
+                print entry["title"] + "\t" + entry["date"]
+
+        elif len(args) == 2:
+            entry = session.get_entry(args[0], args[1])
+            print entry["title"] + "\t" + entry["date"]
 
     def parse_remove(self, args):
         listname = ""
@@ -215,9 +214,44 @@ class CommandParser(object):
 
         elif len(args) == 2:
             session.remove_list_entry(args[0], args[1])
-            print "removed from list " + listname + "entry #" + args[1] 
+            print "removed from list " + args[0] + " entry #" + args[1] 
         pass
     
+    def parse_update(self, args):
+
+        listname = ""
+
+        if len(args) == 0:
+            bailout("liszt update listname [optional entry index]")
+
+        listname = args[0]
+
+        if len(args) == 1:
+            fd, filename = tempfile.mkstemp()
+
+            entries = session.get_list(listname)["contents"]
+
+            for entry in entries:
+                str = "+\t%s\t%s\t%s\n" % (entry["title"], entry["date"], entry["done"])
+                os.write(fd, str)
+
+            editor = os.getenv("EDITOR")
+            os.system(editor + " " + filename)
+            os.close(fd)
+            
+            # Now, reopen the fd, as a python file handle.
+            fd = open(filename)
+            dict = {"contents" : []}
+            lines = fd.readlines()
+
+            for i in range(len(lines)):
+                fields = lines[i].split("\t")
+                if len(fields) != 4:
+                    bailout("Error : one of the fields is not correctly formatted.") # FIXME : display the line number too.
+
+                dict = { "entry" : json.dumps({"title" : fields[1], "date" : fields[2], "done": fields[3]})}
+                print dict
+                session.update_list_entry(listname, i, { "entry" : dict })
 
 
 if __name__ == "__main__":

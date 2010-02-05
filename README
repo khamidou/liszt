@@ -1,7 +1,7 @@
 This is liszt, a command line interface to the todoliszt.com api.
 
-liszt supports (at the moment) three modes of operation : showing, creating, removing a list or
-an element of a list.
+liszt supports (at the moment) four modes of operation : showing, creating, removing a list or
+updating an element of a list.
 
 Basic Usage
 ===========
