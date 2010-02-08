@@ -6,6 +6,8 @@ from datetime import datetime
 import urllib, urllib2, cookielib
 from urllib import quote
 from urllib2 import HTTPError, URLError
+import subprocess
+from subprocess import Popen
 import fnmatch
 import tempfile
 
@@ -23,6 +25,14 @@ conf = ConfigParser.RawConfigParser()
 conf.read(os.path.expanduser('~/.liszt/config'))
 username = conf.get('Credentials', 'username')
 password = conf.get('Credentials', 'password')
+
+def help():
+    print "liszt c|create listname ?entryname? "
+    print "liszt r[remove|d|delete listname ?entryindex?"
+    print "liszt s listname ?entryindex?"
+    print "liszt chk|check listname index"
+    print "liszt u|update listname index ?'new description'? ?'check'? ?'date'?"
+    
 
 def bailout(msg):
     print msg
@@ -152,13 +162,6 @@ class CommandParser(object):
         if args[0] in self.dispatch:
             self.dispatch[args[0]](args[1:])
 
-    def help():
-        print "liszt c|create listname ?entryname? "
-        print "liszt r[remove|d|delete listname ?entryindex?"
-        print "liszt s listname ?entryindex?"
-        print "liszt chk|check listname index"
-        print "liszt~ m|mod|modify listname index ?'new description'? ?'check'? ?'date'?"
-    
     def parse_create(self, args):
         listname = ""
         entryname = ""
@@ -187,7 +190,11 @@ class CommandParser(object):
         listname = ""
         entryname = ""
 
+        if sys.stdin.isatty():
+            sys.stdin = os.popen('/bin/sh -c less -', 'w')
+
         if len(args) == 0:
+            print "List of the created lists :"
             for list in session.get_lists_list():
                 print list
 
@@ -253,6 +260,7 @@ class CommandParser(object):
                 print dict
                 session.update_list_entry(listname, i, dict)
 
+            os.unlink(filename)
 
 if __name__ == "__main__":
 
