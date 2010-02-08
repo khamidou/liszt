@@ -33,5 +33,21 @@ Basic Usage
 
 * Removing a list
 
-  list remove "my list"
-  list remove "my list" entry_index
+  liszt remove "my list"
+  liszt remove "my list" entry_index
+
+* Adding entries in batch mode
+
+  liszt add "my list"
+  
+  This will fire-up the text editor defined in the EDITOR environment variable. The file format is a bit peculiar : each entry is separated by a '+'
+  symbol. After adding the entries, save and quit. Liszt will automatically add the entries to your todoliszt.com list.
+
+* Updating the entries of a list
+
+  liszt update "my list"
+
+  Similarly to the 'add' option, update will open up a text editor with the content of the list "my list". The file format is similar to the one used with
+  the 'add' option : each entry begins with a + symbol. The contents of an entry are (in this order) : the text of an entry, a boolean indicating if it's
+  been done or not and a timestamp.
+  After saving and quitting, the list is automatically updated.

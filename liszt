@@ -157,6 +157,7 @@ class CommandParser(object):
                          "show" :   self.parse_show, 
                          "s" :   self.parse_show,
                          "update" : self.parse_update,
+                         "add" : self.parse_add,
                       }
 
         if args[0] in self.dispatch:
@@ -261,6 +262,32 @@ class CommandParser(object):
                 session.update_list_entry(listname, i, dict)
 
             os.unlink(filename)
+
+    def parse_add(self, args):
+        listname = ""
+
+        if len(args) == 0:
+            bailout("liszt add listname ")
+
+        listname = args[0]
+
+        fd, filename = tempfile.mkstemp()
+
+        editor = os.getenv("EDITOR")
+        os.system(editor + " " + filename)
+        os.close(fd)
+        
+        # Now, reopen the fd, as a python file handle.
+        fd = open(filename)
+        lines = fd.read().split('+')
+
+        for i in range(len(lines)):
+            # fields = lines[i].split("\t")  FIXME: add support for different fields on a line.
+            
+            if lines[i] != '':
+                session.create_list_entry(listname, lines[i].rstrip().lstrip())
+
+        os.unlink(filename)
 
 if __name__ == "__main__":
 
