@@ -42,8 +42,8 @@ def bailout(msg):
 def create_spool_file(dict):
 # Create a spool file and save dict inside as a json dict.
     fd, filename = tempfile.mkstemp(dir=os.path.expanduser('~/.liszt/delayed/'))
-    json.dump(dict, fd)
-    fd.close()
+    os.write(fd, json.dumps(dict))
+    os.close(fd)
     
     
 class CommandParser(object):
@@ -122,19 +122,24 @@ class CommandParser(object):
 
     def parse_remove(self, args):
         listname = ""
-        entryname = ""
+        index = ""
+        spldict = {} # The dictionnary saved in a spool file.
 
-        if len(args) == 0:
-            bailout("liszt rm listname [optional entry index]")
+        if len(args) == 0 or len(args) > 2:
+            bailout("liszt remove listname [optional entry index]")
 
-        if len(args) == 1:
-            session.remove_list(args[0])
-            print "removed list " + args[0]
+        listname = args[0]
 
-        elif len(args) == 2:
-            session.remove_list_entry(args[0], args[1])
-            print "removed from list " + args[0] + " entry #" + args[1] 
-        pass
+        if len(args) == 2:
+            index = int(args[1])
+            spldict["request"] = "delete-entry"
+            spldict["index"] = index
+            spldict["listname"] = listname
+        else:
+            spldict["request"] = "delete-list"
+            spldict["listname"] = listname
+
+        create_spool_file(spldict)
     
     def parse_update(self, args):
 
@@ -160,17 +165,17 @@ class CommandParser(object):
             
             # Now, reopen the fd, as a python file handle.
             fd = open(filename)
-            dict = {"contents" : []}
-            lines = fd.readlines()
+            lines = fd.read().split('+')
 
             for i in range(len(lines)):
                 fields = lines[i].split("\t")
                 if len(fields) != 4:
                     bailout("Error : one of the fields is not correctly formatted.") # FIXME : display the line number too.
 
-                dict = {"title" : fields[1], "date" : fields[2], "done": fields[3]}
-                print dict
-                session.update_list_entry(listname, i, dict)
+                dict = {"request" : "update-entry", "listname" : listname,
+                        "index" : i, "contents" : {"title" : fields[1], "date" : fields[2], "done": fields[3]}}
+
+                create_spool_file(dict)
 
             os.unlink(filename)
 
@@ -197,6 +202,8 @@ class CommandParser(object):
             
             if lines[i] != '':
                 session.create_list_entry(listname, lines[i].rstrip().lstrip())
+                dict = {"request" : "create-entry", "listname" : listname, "contents" : {"title" : lines[i]}}
+                create_spool_file(dict)
 
         os.unlink(filename)
 
