@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 # This is the daemon that actually does the network operations.
+# This is how it works : the ui program (liszt) creates json files corresponding to requests in the ~/.liszt/delayed directory.
+# The daemon periodically scans this folder to sends the requests to the server.
+# The format of a request file is :
+#
+# {"request": request-type, "listname" : ___, "content" : {"title" : ___, "done" : ___, "date" : ___ }}
+# with request-type being : 	"create-entry", "update-entry", "delete-entry",
+#				"create-list", "update-list", "delete-list".
+
 
 import sys
 import os
@@ -11,6 +19,9 @@ import subprocess
 from subprocess import Popen
 import fnmatch
 import tempfile
+import thread
+import time
+import ConfigParser
 
 try:
     import json 
@@ -30,8 +41,8 @@ class LisztSession:
     def __init__(self):
 
         self.jar = cookielib.LWPCookieJar()
-        if os.path.isfile('~/.liszt/cookiejar'):
-            self.jar.load('~/.liszt/cookiejar')
+        if os.path.isfile(os.path.expanduser('~/.liszt/cookiejar')):
+            self.jar.load(os.path.expanduser('~/.liszt/cookiejar'))
 
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.jar))
         urllib2.install_opener(self.opener)
@@ -39,12 +50,15 @@ class LisztSession:
     def login(self, username, password):
         d = {'username' : username, 'password': password}
         ed = urllib.urlencode(d)
-        try:
-            urllib2.urlopen(base + "/login/", ed)
-        except HTTPError:
-            bailout("Unable to log you in - are you credentials correct ?")
-        except URLError:
-            bailout("Unable to connect to the remote host.")
+        
+        while True:
+            try:
+                urllib2.urlopen(base + "/login/", ed)
+                return
+            except URLError, HTTPError:
+                print "Unable to log you in"
+                time.sleep(5 * 60) # Try to reconnect every five minutes.
+                continue
 
     def create_list(self, listname):
         try:
@@ -134,3 +148,93 @@ class LisztSession:
         except HTTPError:
             bailout("Unable to glob list pattern")
 
+def process_json_delayed_file(path, session):
+    try:
+        fd = open(path)
+    except IOError:
+        return
+
+    data = json.load(fd)
+
+    if "request" not in data or "listname" not in data:
+        return # Discard incorrect files
+
+    if data["request"] == "create-list":
+        session.create_list(data["listname"])
+    elif data["request"] == "create-entry":
+        try:
+            session.create_entry(data["listname"], data["content"]["title"]) 	# FIXME : use the other options if defined.
+        except KeyError:
+            return
+    elif data["request"] == "delete-list":
+        session.remove_list(data["listname"])
+    elif data["request"] == "delete-entry":
+        try:
+            session.remove_list_entry(data["listname"], data["content"]["index"])
+        except KeyError:
+            return
+    elif data["request"] == "update-entry":
+        try:
+            session.update_entry(data["listname"], data["content"]["index"], data["content"])
+        except KeyError:
+            return
+        
+    os.unlink(path)
+
+def watch_spool_dir(name, session):
+    while True:
+        for file in os.listdir(os.path.expanduser('~/.liszt/delayed/')):
+            process_json_delayed_file(os.path.expanduser('~/.liszt/delayed/') + file, session)
+        
+        time.sleep(15 * 60) # Sync the files with the server every 15 minutes.
+
+def sync_cached_list(path, session):
+    def isentrydefined(title, list):
+        # Is an entry in a list ? Yes if it's title is in the list
+        for e in list:
+            if e["title"] == title:
+                return True
+
+        return False
+
+    try:
+        fd = open(path)
+    except IOError:
+        return
+
+    cached_list = json.load(fd)
+    try:
+        listname = cached_list["name"]
+    except KeyError:
+        return
+
+    server_list = session.get_list(listname)
+
+    for entry in server_list:
+        if isinstance(entry, list): # Discard lists for the moment
+            continue
+        
+        cached_list[entry] = server_list[entry]
+
+    for entry in server_list["contents"]:
+        if not isentrydefined(entry["title"], cached_list["contents"]):
+            cached_list["contents"].push(entry)
+
+    json.dump(fd)
+    
+def watch_cache_dir(name, session):
+    while True:
+        for file in os.listdir(os.path.expanduser('~/.liszt/cached/')):
+            sync_cached_list(os.path.expanduser('~/.liszt/cached/') + file, session)
+        
+        time.sleep(20 * 60) # Sync the files with the server every 20 minutes.
+    
+if __name__ == "__main__":
+
+    session = LisztSession()
+    session.login(username, password)
+
+    session = ""
+    thread.start_new_thread(watch_spool_dir, ("watch_spool_dir", session))
+
+    while 1:pass

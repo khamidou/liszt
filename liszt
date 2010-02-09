@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # 
+
 import sys
 import os
 from datetime import datetime
@@ -37,114 +38,6 @@ def help():
 def bailout(msg):
     print msg
     sys.exit(-1)
-
-class LisztSession:
-    def __init__(self):
-
-        self.jar = cookielib.LWPCookieJar()
-        if os.path.isfile('~/.liszt/cookiejar'):
-            self.jar.load('~/.liszt/cookiejar')
-
-        self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(self.jar))
-        urllib2.install_opener(self.opener)
-
-    def login(self, username, password):
-        d = {'username' : username, 'password': password}
-        ed = urllib.urlencode(d)
-        try:
-            urllib2.urlopen(base + "/login/", ed)
-        except HTTPError:
-            bailout("Unable to log you in - are you credentials correct ?")
-        except URLError:
-            bailout("Unable to connect to the remote host.")
-
-    def create_list(self, listname):
-        try:
-            urllib2.urlopen(base + "/create/" + quote(listname) + "/")
-        except HTTPError:
-            bailout("Unable to create the list " + listname)
-
-    def create_list_entry(self, listname, entry):
-        try:
-            urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
-        except HTTPError:
-            bailout("Unable to create the list entry in list " + listname)
-
-    def get_lists_list(self):
-        try:
-            req = urllib2.urlopen(base + "/getlists/")
-        except HTTPError:
-            bailout("Unable to get a list of the available lists")
-            
-        return json.load(req)
-
-    def get_list(self, listname):
-        ln = self.glob_listname(listname)
-
-        try:
-            req = urllib2.urlopen(base + "/get/" + quote(ln) + "/")
-        except HTTPError:
-            bailout("Unable to open the list " + listname)
-
-        return json.load(req)
-
-    def get_entry(self, listname, index):
-        ln = self.glob_listname(listname)
-
-        try:
-            req = urllib2.urlopen(base + "/get/" + quote(ln) + "/" + str(index) + "/")
-        except HTTPError:
-            bailout("Unable to get entry " + str(index) + " from list " + listname)
-
-        return json.load(req)
-
-    def remove_list(self, listname):
-        try:
-            urllib2.urlopen(base + "/remove/" + quote(listname) + "/")
-        except HTTPError:
-            bailout("Unable to remove the list " + listname)
-
-    def remove_list_entry(self, listname, index):
-        try:
-            urllib2.urlopen(base + "/remove/" + quote(listname) + "/" + quote(index) + "/")
-        except HTTPError:
-            bailout("Unable to remove the entry " + index + "from list " + listname)
-
-    def update_list_entry(self, listname, index, contents):
-        ec = urllib.urlencode(contents)
-        try:
-            urllib2.urlopen(base + "/update/" + listname + "/" + str(index) + "/", ec)
-        except HTTPError:
-            bailout("Unable to update the list entry")
-        
-    def glob_listname(self, pattern):
-        
-        def match_listname(l):
-            # This function doesn't seem very pythonic...
-            if len(l) > 1:
-                print str(len(l)) + " lists satifisfy the pattern : "
-                print l
-
-                try:
-                    pat = raw_input("Enter a matching pattern to clarify your choice : ")
-                except EOFError:
-                    sys.exit(-1)
-
-                return match_listname(fnmatch.filter(l, pat))
-            else:
-                return l[0]
-
-        try:
-            lists = self.get_lists_list()
-            res = fnmatch.filter(lists, pattern)
-
-            if len(res) > 1:
-                return match_listname(res)
-            else:
-                return res[0]
-
-        except HTTPError:
-            bailout("Unable to glob list pattern")
 
 class CommandParser(object):
     def __init__(self, args):
@@ -295,6 +188,4 @@ if __name__ == "__main__":
         help()
         sys.exit(0)
 
-    session = LisztSession()
-    session.login(username, password)
     parser = CommandParser(sys.argv[1:])
