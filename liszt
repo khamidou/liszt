@@ -39,6 +39,13 @@ def bailout(msg):
     print msg
     sys.exit(-1)
 
+def create_spool_file(dict):
+# Create a spool file and save dict inside as a json dict.
+    fd, filename = tempfile.mkstemp(dir=os.path.expanduser('~/.liszt/delayed/'))
+    json.dump(dict, fd)
+    fd.close()
+    
+    
 class CommandParser(object):
     def __init__(self, args):
         self.dispatch = {"create" : self.parse_create,
@@ -59,6 +66,7 @@ class CommandParser(object):
     def parse_create(self, args):
         listname = ""
         entryname = ""
+        spldict = {} # The dictionnary saved in a spool file.
 
         if len(args) == 0:
             bailout("liszt create listname [optional entry name]")
@@ -76,9 +84,17 @@ class CommandParser(object):
             entryname = reduce(addstr, args[1:])
         
         if entryname == "":
-            session.create_list(listname)
+            spldict["request"] = "create-list"
+            spldict["listname"] = listname
+            
         else:
-            session.create_list_entry(listname, entryname)
+            spldict["request"] = "create-entry"
+            spldict["listname"] = listname
+            spldict["content"] = dict()
+            spldict["content"]["title"] = entryname # FIXME : specify the other options.
+
+        create_spool_file(spldict)
+            
 
     def parse_show(self, args):
         listname = ""
@@ -89,18 +105,20 @@ class CommandParser(object):
 
         if len(args) == 0:
             print "List of the created lists :"
-            for list in session.get_lists_list():
+            lists = open(os.path.expanduser('~/.liszt/cache/lists_list'))
+            for list in lists.readlines():
                 print list
 
         if len(args) == 1:
-            entries = session.get_list(args[0])
+            listfd = open(os.path.expanduser('~/.liszt/cache/lists_list') + args[0])
+            list = json.load(listfd)
+            print list
+#             for entry in entries["contents"]:
+#                 print entry["title"] + "\t" + entry["date"]
 
-            for entry in entries["contents"]:
-                print entry["title"] + "\t" + entry["date"]
-
-        elif len(args) == 2:
-            entry = session.get_entry(args[0], args[1])
-            print entry["title"] + "\t" + entry["date"]
+#         elif len(args) == 2:
+#             entry = session.get_entry(args[0], args[1])
+#             print entry["title"] + "\t" + entry["date"]
 
     def parse_remove(self, args):
         listname = ""

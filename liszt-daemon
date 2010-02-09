@@ -57,6 +57,8 @@ class Daemon:
         do the UNIX double-fork magic, see Stevens' "Advanced 
         Programming in the UNIX Environment" for details (ISBN 0201563177)
         http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
+
+        Note: the process doesn't decouple himself from the parent environment.
         """
         try: 
             pid = os.fork() 
@@ -66,11 +68,6 @@ class Daemon:
         except OSError, e: 
             sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
             sys.exit(1)
-            
-            # decouple from parent environment
-            os.chdir("/") 
-            os.setsid() 
-            os.umask(0) 
             
             # do second fork
             try: 
