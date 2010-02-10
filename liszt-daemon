@@ -11,6 +11,7 @@
 
 import sys
 import os
+import sets
 from datetime import datetime
 import urllib, urllib2, cookielib
 from urllib import quote
@@ -31,7 +32,7 @@ except ImportError:
     import simplejson as json                                                                                                                         
 
 
-base = "http://soundbush.com:8080/api/v1"
+base = "http://0.0.0.0:8080/api/v1"
 
 conf = ConfigParser.RawConfigParser()
 conf.read(os.path.expanduser('~/.liszt/config'))
@@ -41,126 +42,125 @@ password = conf.get('Credentials', 'password')
 
 # The Daemon class comes from http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
 class Daemon:
-    """
-    A generic daemon class.
-    
-    Usage: subclass the Daemon class and override the run() method
-    """
-    def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
-        self.stdin = stdin
-        self.stdout = stdout
-        self.stderr = stderr
-        self.pidfile = pidfile
-        
-    def daemonize(self):
-        """
-        do the UNIX double-fork magic, see Stevens' "Advanced 
-        Programming in the UNIX Environment" for details (ISBN 0201563177)
-        http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
+	"""
+	A generic daemon class.
+	
+	Usage: subclass the Daemon class and override the run() method
+	"""
+	def __init__(self, pidfile, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+		self.stdin = stdin
+		self.stdout = stdout
+		self.stderr = stderr
+		self.pidfile = pidfile
+	
+	def daemonize(self):
+		"""
+		do the UNIX double-fork magic, see Stevens' "Advanced 
+		Programming in the UNIX Environment" for details (ISBN 0201563177)
+		http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
+		"""
+		try: 
+			pid = os.fork() 
+			if pid > 0:
+				# exit first parent
+				sys.exit(0) 
+		except OSError, e: 
+			sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+			sys.exit(1)
+	
+		# do second fork
+		try: 
+			pid = os.fork() 
+			if pid > 0:
+				# exit from second parent
+				sys.exit(0) 
+		except OSError, e: 
+			sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+			sys.exit(1) 
+	
+		# redirect standard file descriptors
+		sys.stdout.flush()
+		sys.stderr.flush()
+		si = file(self.stdin, 'r')
+		so = file(self.stdout, 'a+')
+		se = file(self.stderr, 'a+', 0)
+		os.dup2(si.fileno(), sys.stdin.fileno())
+		os.dup2(so.fileno(), sys.stdout.fileno())
+		os.dup2(se.fileno(), sys.stderr.fileno())
+	
+		# write pidfile
+		atexit.register(self.delpid)
+		pid = str(os.getpid())
+		file(self.pidfile,'w+').write("%s\n" % pid)
+	
+	def delpid(self):
+		os.remove(self.pidfile)
 
-        Note: the process doesn't decouple himself from the parent environment.
-        """
-        try: 
-            pid = os.fork() 
-            if pid > 0:
-                # exit first parent
-                sys.exit(0) 
-        except OSError, e: 
-            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1)
-            
-            # do second fork
-            try: 
-                pid = os.fork() 
-            if pid > 0:
-                # exit from second parent
-                sys.exit(0) 
-        except OSError, e: 
-            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
-            sys.exit(1) 
-            
-            # redirect standard file descriptors
-            sys.stdout.flush()
-            sys.stderr.flush()
-            si = file(self.stdin, 'r')
-            so = file(self.stdout, 'a+')
-            se = file(self.stderr, 'a+', 0)
-            os.dup2(si.fileno(), sys.stdin.fileno())
-            os.dup2(so.fileno(), sys.stdout.fileno())
-            os.dup2(se.fileno(), sys.stderr.fileno())
-            
-            # write pidfile
-            atexit.register(self.delpid)
-            pid = str(os.getpid())
-            file(self.pidfile,'w+').write("%s\n" % pid)
-            
-        def delpid(self):
-            os.remove(self.pidfile)
+	def start(self):
+		"""
+		Start the daemon
+		"""
+		# Check for a pidfile to see if the daemon already runs
+		try:
+			pf = file(self.pidfile,'r')
+			pid = int(pf.read().strip())
+			pf.close()
+		except IOError:
+			pid = None
+	
+		if pid:
+			message = "pidfile %s already exist. Daemon already running?\n"
+			sys.stderr.write(message % self.pidfile)
+			sys.exit(1)
+		
+		# Start the daemon
+		self.daemonize()
+		self.run()
 
-        def start(self):
-            """
-            Start the daemon
-            """
-            # Check for a pidfile to see if the daemon already runs
-            try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-            except IOError:
-            pid = None
-            
-            if pid:
-            message = "pidfile %s already exist. Daemon already running?\n"
-            sys.stderr.write(message % self.pidfile)
-            sys.exit(1)
-            
-            # Start the daemon
-            self.daemonize()
-            self.run()
+	def stop(self):
+		"""
+		Stop the daemon
+		"""
+		# Get the pid from the pidfile
+		try:
+			pf = file(self.pidfile,'r')
+			pid = int(pf.read().strip())
+			pf.close()
+		except IOError:
+			pid = None
+	
+		if not pid:
+			message = "pidfile %s does not exist. Daemon not running?\n"
+			sys.stderr.write(message % self.pidfile)
+			return # not an error in a restart
 
-        def stop(self):
-            """
-            Stop the daemon
-            """
-            # Get the pid from the pidfile
-            try:
-            pf = file(self.pidfile,'r')
-            pid = int(pf.read().strip())
-            pf.close()
-            except IOError:
-            pid = None
-            
-            if not pid:
-            message = "pidfile %s does not exist. Daemon not running?\n"
-            sys.stderr.write(message % self.pidfile)
-            return # not an error in a restart
+		# Try killing the daemon process	
+		try:
+			while 1:
+				os.kill(pid, SIGTERM)
+				time.sleep(0.1)
+		except OSError, err:
+			err = str(err)
+			if err.find("No such process") > 0:
+				if os.path.exists(self.pidfile):
+					os.remove(self.pidfile)
+			else:
+				print str(err)
+				sys.exit(1)
 
-            # Try killing the daemon process
-            try:
-            while 1:
-            os.kill(pid, SIGTERM)
-            time.sleep(0.1)
-            except OSError, err:
-            err = str(err)
-            if err.find("No such process") > 0:
-            if os.path.exists(self.pidfile):
-            os.remove(self.pidfile)
-            else:
-            print str(err)
-            sys.exit(1)
+	def restart(self):
+		"""
+		Restart the daemon
+		"""
+		self.stop()
+		self.start()
 
-        def restart(self):
-            """
-            Restart the daemon
-            """
-            self.stop()
-            self.start()
+	def run(self):
+		"""
+		You should override this method when you subclass Daemon. It will be called after the process has been
+		daemonized by start() or restart().
+		"""
 
-        def run(self):
-            """
-            You should override this method when you subclass Daemon. It will be called after the process has been
-            daemonized by start() or restart().
-            """
 
 class LisztSession:
     def __init__(self):
@@ -180,8 +180,7 @@ class LisztSession:
             try:
                 urllib2.urlopen(base + "/login/", ed)
                 return
-            except URLError:
-            except HTTPError:
+            except URLError, HTTPError:
                 print "Unable to log you in"
                 time.sleep(5 * 60) # Try to reconnect every five minutes.
                 continue
@@ -274,7 +273,7 @@ class LisztSession:
         except HTTPError:
             bailout("Unable to glob list pattern")
 
-def process_json_delayed_file(path, session):
+def process_json_delayed_file(path):
     try:
         fd = open(path)
     except IOError:
@@ -289,7 +288,7 @@ def process_json_delayed_file(path, session):
         session.create_list(data["listname"])
     elif data["request"] == "create-entry":
         try:
-            session.create_entry(data["listname"], data["content"]["title"]) 	# FIXME : use the other options if defined.
+            session.create_list_entry(data["listname"], data["content"]["title"]) 	# FIXME : use the other options if defined.
         except KeyError:
             return
     elif data["request"] == "delete-list":
@@ -307,14 +306,33 @@ def process_json_delayed_file(path, session):
         
     os.unlink(path)
 
-def watch_spool_dir(name, session):
+def watch_spool_dir():
     while True:
         for file in os.listdir(os.path.expanduser('~/.liszt/delayed/')):
-            process_json_delayed_file(os.path.expanduser('~/.liszt/delayed/') + file, session)
+            process_json_delayed_file(os.path.expanduser('~/.liszt/delayed/') + file)
         
         time.sleep(15 * 60) # Sync the files with the server every 15 minutes.
 
-def sync_cached_list(path, session):
+def cache_new_lists():
+    # This thread caches lists that were recently created on the server but are not available
+    # on the client.
+
+    server_set = set(session.get_lists_list())
+    cached_set = set(os.listdir(os.path.expanduser('~/.liszt/cached/')))
+    
+    for list in server_set.difference(cached_set):
+        try:
+            fd = open(os.path.expanduser('~/.liszt/cached/') + list, 'w+')
+        except IOError:
+            continue
+
+        dict = session.get_list(list)
+        json.dump(dict, fd)
+        fd.close()
+
+    time.sleep(15 * 60)
+        
+def sync_cached_list(path):
     def isentrydefined(title, list):
         # Is an entry in a list ? Yes if it's title is in the list
         for e in list:
@@ -351,7 +369,7 @@ def sync_cached_list(path, session):
 def watch_cache_dir(name, session):
     while True:
         for file in os.listdir(os.path.expanduser('~/.liszt/cached/')):
-            sync_cached_list(os.path.expanduser('~/.liszt/cached/') + file, session)
+            sync_cached_list(os.path.expanduser('~/.liszt/cached/') + file)
         
         time.sleep(20 * 60) # Sync the files with the server every 20 minutes.
     
@@ -360,7 +378,7 @@ if __name__ == "__main__":
     session = LisztSession()
     session.login(username, password)
 
-    session = ""
-    thread.start_new_thread(watch_spool_dir, ("watch_spool_dir", session))
+    thread.start_new_thread(watch_spool_dir, ())
+    thread.start_new_thread(cache_new_lists, ())
 
     while 1:pass
