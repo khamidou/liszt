@@ -49,9 +49,9 @@ class CachedList(object):
     def __init__(self, listname):
         try:
             self.listname = listname
-            fd = open(os.path.expanduser('~/.liszt/cached/%s' % listname))
+            fd = open(os.path.expanduser('~/.liszt/cached/') + listname)
         except IOError:
-            bailout("Unable to open cached list " + listname)
+            bailout("Unable to open cached list <%s>" % listname)
 
         try:
             self.cached_list = json.load(fd)
@@ -59,7 +59,7 @@ class CachedList(object):
             bailout("List <%s> is not a valid json file" % listname)
 
     def save(self):
-        fd = open(os.path.expanduser('~/.liszt/cached/%s' % listname), 'w+')
+        fd = open(os.path.expanduser('~/.liszt/cached/') + self.listname, 'w+')
         json.dump(self.cached_list, fd)
     
     def fget(self):
@@ -154,25 +154,34 @@ class CommandParser(object):
             print entry["title"] + "\t" + entry["date"]
 
     def parse_remove(self, args):
+        if len(args) == 0 or len(args) > 2:
+            bailout("liszt remove listname [optional entry index]")
+
         listname = ""
         index = ""
         spldict = {} # The dictionnary saved in a spool file.
 
-        if len(args) == 0 or len(args) > 2:
-            bailout("liszt remove listname [optional entry index]")
-
         listname = args[0]
+        list = CachedList(listname)
 
         if len(args) == 2:
             index = int(args[1])
             spldict["request"] = "delete-entry"
             spldict["index"] = index
             spldict["listname"] = listname
+
+            list.contents["contents"][index]["deleted"] = 1
+            list.save()
+
         else:
             spldict["request"] = "delete-list"
             spldict["listname"] = listname
 
+            list.contents["deleted"] = 1
+            list.save()
+
         create_spool_file(spldict)
+        
     
     def parse_update(self, args):
 
