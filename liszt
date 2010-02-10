@@ -48,15 +48,31 @@ def create_spool_file(dict):
 class CachedList(object):
     def __init__(self, listname):
         try:
+            self.listname = listname
             fd = open(os.path.expanduser('~/.liszt/cached/%s' % listname))
         except IOError:
             bailout("Unable to open cached list " + listname)
 
         try:
-            self.list = json.load(fd)
+            self.cached_list = json.load(fd)
         except ValueError:
-            bailout("List %s is not a valid json file" % listname)
-        fd.close()
+            bailout("List <%s> is not a valid json file" % listname)
+
+    def save(self):
+        fd = open(os.path.expanduser('~/.liszt/cached/%s' % listname), 'w+')
+        json.dump(self.cached_list, fd)
+    
+    def fget(self):
+        return self.cached_list
+    
+    def fset(self, list):
+        self.cached_list = list
+
+    def fdel(self):
+        del self.cached_list
+        
+    contents = property(fget, fset, fdel)
+
 class CommandParser(object):
     def __init__(self, args):
         self.dispatch = {"create" : self.parse_create,
@@ -111,25 +127,31 @@ class CommandParser(object):
         listname = ""
         entryname = ""
 
-        if sys.stdin.isatty():
-            sys.stdin = os.popen('/bin/sh -c less -', 'w')
+        if sys.stdout.isatty():
+            sys.stdout = os.popen('/bin/sh -c less -', 'w')
 
         if len(args) == 0:
             print "List of the created lists :"
-            lists = open(os.path.expanduser('~/.liszt/cache/lists_list'))
-            for list in lists.readlines():
+            lists_list = CachedList("lists_list")
+
+            for list in lists_list.contents:
                 print list
 
         if len(args) == 1:
-            listfd = open(os.path.expanduser('~/.liszt/cache/lists_list') + args[0])
-            list = json.load(listfd)
-            print list
-#             for entry in entries["contents"]:
-#                 print entry["title"] + "\t" + entry["date"]
+            list = CachedList(args[0])
 
-#         elif len(args) == 2:
-#             entry = session.get_entry(args[0], args[1])
-#             print entry["title"] + "\t" + entry["date"]
+            for entry in list.contents["contents"]:
+                print entry["title"] + "\t" + entry["date"]
+
+        elif len(args) == 2:
+            list = CachedList(args[0])
+            index = int(args[1])
+            try:
+                entry = list.contents["contents"][index]
+            except IndexError:
+                bailout("Invalid entry index.")
+
+            print entry["title"] + "\t" + entry["date"]
 
     def parse_remove(self, args):
         listname = ""

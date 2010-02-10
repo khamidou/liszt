@@ -335,6 +335,11 @@ def cache_new_lists():
         json.dump(dict, fd)
         fd.close()
 
+    # Also save a list of the lists :
+    fd = open(os.path.expanduser('~/.liszt/cached/lists_list'), 'w+')
+    json.dump(session.get_lists_list(), fd)
+    fd.close()
+
     time.sleep(15 * 60)
         
 def sync_cached_list(path):
