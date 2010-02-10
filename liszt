@@ -32,7 +32,7 @@ def help():
     print "liszt r[remove|d|delete listname ?entryindex?"
     print "liszt s listname ?entryindex?"
     print "liszt chk|check listname index"
-    print "liszt u|update listname index ?'new description'? ?'check'? ?'date'?"
+    print "liszt u|update listname"
     
 
 def bailout(msg):
@@ -45,7 +45,18 @@ def create_spool_file(dict):
     os.write(fd, json.dumps(dict))
     os.close(fd)
     
-    
+class CachedList(object):
+    def __init__(self, listname):
+        try:
+            fd = open(os.path.expanduser('~/.liszt/cached/%s' % listname))
+        except IOError:
+            bailout("Unable to open cached list " + listname)
+
+        try:
+            self.list = json.load(fd)
+        except ValueError:
+            bailout("List %s is not a valid json file" % listname)
+        fd.close()
 class CommandParser(object):
     def __init__(self, args):
         self.dispatch = {"create" : self.parse_create,
@@ -201,8 +212,7 @@ class CommandParser(object):
             # fields = lines[i].split("\t")  FIXME: add support for different fields on a line.
             
             if lines[i] != '':
-                session.create_list_entry(listname, lines[i].rstrip().lstrip())
-                dict = {"request" : "create-entry", "listname" : listname, "contents" : {"title" : lines[i]}}
+                dict = {"request" : "create-entry", "listname" : listname, "content" : {"title" : lines[i].rstrip().lstrip()}}
                 create_spool_file(dict)
 
         os.unlink(filename)

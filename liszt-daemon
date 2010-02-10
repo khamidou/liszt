@@ -186,12 +186,16 @@ class LisztSession:
                 continue
 
     def create_list(self, listname):
+        listname = listname.encode("utf8")
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/")
         except HTTPError:
             bailout("Unable to create the list " + listname)
 
     def create_list_entry(self, listname, entry):
+        listname = listname.encode("utf8")
+        entry = entry.encode("utf8")
+
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
         except HTTPError:
@@ -291,6 +295,7 @@ def process_json_delayed_file(path):
             session.create_list_entry(data["listname"], data["content"]["title"]) 	# FIXME : use the other options if defined.
         except KeyError:
             return
+
     elif data["request"] == "delete-list":
         session.remove_list(data["listname"])
     elif data["request"] == "delete-entry":
