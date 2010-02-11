@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import with_statement
 # 
 
 import sys
@@ -12,12 +13,14 @@ from subprocess import Popen
 import fnmatch
 import tempfile
 import datetime
+import locale
 
 try:
     import json 
 except ImportError:
     import simplejson as json                                                                                                                         
 
+locale.setlocale(locale.LC_ALL, locale=locale.getdefaultlocale())
 
 def help():
     print "liszt c|create listname ?entryname? "
@@ -58,7 +61,7 @@ class CachedList(object):
 
     def save(self):
         fd = open(os.path.expanduser('~/.liszt/cached/') + self.listname, 'w+')
-        json.dump(self.cached_list, fd)
+        json.dump(self.cached_list, fd, ensure_ascii=False)
     
     def fget(self):
         return self.cached_list
@@ -126,7 +129,7 @@ class CommandParser(object):
             spldict["content"]["title"] = entryname # FIXME : specify the other options.
 
             cached_list = CachedList(listname)
-            entry = {"title" : entryname, "date" : str(datetime.datetime.now())} # FIXME : specify the other options.
+            entry = {"title" : entryname, "done" : 0, "date" : str(datetime.datetime.now())} # FIXME : specify the other options.
             cached_list.contents["contents"].append(entry)
             cached_list.save()
 
@@ -136,9 +139,6 @@ class CommandParser(object):
     def parse_show(self, args):
         listname = ""
         entryname = ""
-
-        if sys.stdout.isatty():
-            sys.stdout = os.popen('/bin/sh -c less -', 'w')
 
         if len(args) == 0:
             print "List of the created lists :"
@@ -164,7 +164,7 @@ class CommandParser(object):
             except IndexError:
                 bailout("Invalid entry index.")
 
-            print entry["title"] + "\t" + entry["date"]
+            print entry["title"].decode("utf8") + "\t" + entry["date"]
 
     def parse_remove(self, args):
         if len(args) == 0 or len(args) > 2:
@@ -208,7 +208,8 @@ class CommandParser(object):
         if len(args) == 1:
             fd, filename = tempfile.mkstemp()
 
-            entries = session.get_list(listname)["contents"]
+            l = CachedList(listname)
+            entries = l.contents["contents"]
 
             for entry in entries:
                 str = "+\t%s\t%s\t%s\n" % (entry["title"], entry["date"], entry["done"])
@@ -222,15 +223,24 @@ class CommandParser(object):
             fd = open(filename)
             lines = fd.read().split('+')
 
-            for i in range(len(lines)):
-                fields = lines[i].split("\t")
+            for i, line in enumerate(lines):
+                fields = line.split("\t")
                 if len(fields) != 4:
-                    bailout("Error : one of the fields is not correctly formatted.") # FIXME : display the line number too.
+                    bailout("Error at line %d : one of the fields is not correctly formatted." % i)
 
                 dict = {"request" : "update-entry", "listname" : listname,
                         "index" : i, "contents" : {"title" : fields[1], "date" : fields[2], "done": fields[3]}}
 
                 create_spool_file(dict)
+
+                # Also update the cached list
+                try:
+                    with l.contents["contents"][i] as entry:
+                        entry["title"] = fields[1]
+                        entry["date"] = fields[2]
+                        entry["done"] = fields[3]
+                except IndexError:
+                    continue
 
             os.unlink(filename)
 
@@ -252,12 +262,18 @@ class CommandParser(object):
         fd = open(filename)
         lines = fd.read().split('+')
 
-        for i in range(len(lines)):
+        for i, line in enumerate(lines):
             # fields = lines[i].split("\t")  FIXME: add support for different fields on a line.
             
-            if lines[i] != '':
-                dict = {"request" : "create-entry", "listname" : listname, "content" : {"title" : lines[i].rstrip().lstrip()}}
+            if line != '':
+                title = unicode(line.strip())
+                dict = {"request" : "create-entry", "listname" : listname, "content" : {"title" : title}}
                 create_spool_file(dict)
+                cached_list = CachedList(listname)
+
+                entry = {"title" : title, "done" : 0, "date" : str(datetime.datetime.now())} 
+                cached_list.contents["contents"].append(entry)
+                cached_list.save()
 
         os.unlink(filename)
 

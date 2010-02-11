@@ -1,2 +1,15 @@
 #!/usr/bin/env python
 # This program setups the ~/.liszt directory.
+
+import os
+
+path = os.path.expanduser('~/.liszt')
+
+if os.access(path, os.F_OK):
+    os.chdir(path)
+else:
+    os.mkdir(path)
+    os.chdir(path)
+    os.mkdir("delayed")
+    os.mkdir("cached")
+    os.system("echo [] > cached/lists_list")
