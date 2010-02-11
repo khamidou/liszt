@@ -11,21 +11,13 @@ import subprocess
 from subprocess import Popen
 import fnmatch
 import tempfile
-
-import ConfigParser
+import datetime
 
 try:
     import json 
 except ImportError:
     import simplejson as json                                                                                                                         
 
-
-base = "http://soundbush.com:8080/api/v1"
-
-conf = ConfigParser.RawConfigParser()
-conf.read(os.path.expanduser('~/.liszt/config'))
-username = conf.get('Credentials', 'username')
-password = conf.get('Credentials', 'password')
 
 def help():
     print "liszt c|create listname ?entryname? "
@@ -50,13 +42,19 @@ class CachedList(object):
         try:
             self.listname = listname
             fd = open(os.path.expanduser('~/.liszt/cached/') + listname)
-        except IOError:
-            bailout("Unable to open cached list <%s>" % listname)
+            try:
+                self.cached_list = json.load(fd)
+            except ValueError:
+                bailout("List <%s> is not a valid json file" % listname)
 
-        try:
-            self.cached_list = json.load(fd)
-        except ValueError:
-            bailout("List <%s> is not a valid json file" % listname)
+        except IOError:
+            # Create it.
+            try:
+                fd = open(os.path.expanduser('~/.liszt/cached/') + listname, 'w+')
+            except IOError:
+                bailout("IOError when trying to create a cached list.")
+            
+            self.cached_list = {"name" : listname, "contents" : []}
 
     def save(self):
         fd = open(os.path.expanduser('~/.liszt/cached/') + self.listname, 'w+')
@@ -113,12 +111,24 @@ class CommandParser(object):
         if entryname == "":
             spldict["request"] = "create-list"
             spldict["listname"] = listname
+            cached_list = CachedList(listname)
+            cached_list.save()
+
+            lists_list = CachedList("lists_list")
+            lists_list.contents.append(listname)
+            lists_list.save()
+            
             
         else:
             spldict["request"] = "create-entry"
             spldict["listname"] = listname
             spldict["content"] = dict()
             spldict["content"]["title"] = entryname # FIXME : specify the other options.
+
+            cached_list = CachedList(listname)
+            entry = {"title" : entryname, "date" : str(datetime.datetime.now())} # FIXME : specify the other options.
+            cached_list.contents["contents"].append(entry)
+            cached_list.save()
 
         create_spool_file(spldict)
             
@@ -135,13 +145,16 @@ class CommandParser(object):
             lists_list = CachedList("lists_list")
 
             for list in lists_list.contents:
-                print list
+                cl = CachedList(list)
+                if "deleted" not in cl.contents:
+                    print list
 
         if len(args) == 1:
             list = CachedList(args[0])
 
             for entry in list.contents["contents"]:
-                print entry["title"] + "\t" + entry["date"]
+                if "deleted" not in entry:
+                    print entry["title"] + "\t" + entry["date"]
 
         elif len(args) == 2:
             list = CachedList(args[0])
