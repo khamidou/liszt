@@ -14,6 +14,7 @@ import tempfile
 import datetime
 import locale
 import codecs
+from libliszt.utils import CachedList
 
 try:
     import json 
@@ -42,42 +43,6 @@ def create_spool_file(dict):
     os.write(fd, json.dumps(dict))
     os.close(fd)
     
-class CachedList(object):
-    def __init__(self, listname):
-        try:
-            self.listname = listname
-            fd = open(os.path.expanduser('~/.liszt/cached/') + listname)
-            try:
-                self.cached_list = json.load(fd)
-            except ValueError:
-                bailout("List <%s> is not a valid json file" % listname)
-
-        except IOError:
-            # Create it.
-            try:
-                fd = open(os.path.expanduser('~/.liszt/cached/') + listname, 'w+')
-            except IOError:
-                bailout("IOError when trying to create a cached list.")
-            
-            self.cached_list = {"name" : listname, "contents" : []}
-
-    def save(self):
-        fd = open(os.path.expanduser('~/.liszt/cached/') + self.listname, 'w+')
-        json.dump(self.cached_list, fd, encoding="utf8")
-
-    def remove(self):
-        os.unlink(os.path.expanduser('~/.liszt/cached/') + self.listname)
-
-    def fget(self):
-        return self.cached_list
-    
-    def fset(self, list):
-        self.cached_list = list
-
-    def fdel(self):
-        del self.cached_list
-        
-    contents = property(fget, fset, fdel)
 
 def glob_listname(pattern):
 

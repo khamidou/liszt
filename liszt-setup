@@ -2,8 +2,9 @@
 # This program setups the ~/.liszt directory.
 
 import os
+import ConfigParser
 
-path = os.path.expanduser('~/.liszt')
+path = os.path.expanduser('~/.liszt/')
 
 if os.access(path, os.F_OK):
     os.chdir(path)
@@ -13,3 +14,22 @@ else:
     os.mkdir("delayed")
     os.mkdir("cached")
     os.system("echo [] > cached/lists_list")
+
+config = ConfigParser.RawConfigParser()
+
+username = raw_input("Please enter your username : ").strip()
+password = raw_input("Please enter your password : ").strip()
+
+config.add_section('Credentials')
+config.set('Credentials', 'password', password)
+config.set('Credentials', 'username', username)
+
+try:
+    conffd =  open(path + "config", 'w+')
+except IOError:
+    print "Unable to open configuration file for writing"
+    sys.exit(-1)
+
+config.write(conffd)
+
+print "\nThe configuration file has been created. It's time to create lists !"
