@@ -65,7 +65,10 @@ class CachedList(object):
     def save(self):
         fd = open(os.path.expanduser('~/.liszt/cached/') + self.listname, 'w+')
         json.dump(self.cached_list, fd, encoding="utf8")
-    
+
+    def remove(self):
+        os.unlink(os.path.expanduser('~/.liszt/cached/') + self.listname)
+
     def fget(self):
         return self.cached_list
     
@@ -85,14 +88,21 @@ class CommandParser(object):
                          "remove" : self.parse_remove,
                          "rem" : self.parse_remove,
                          "rm" : self.parse_remove,
+                         "d" : self.parse_remove,
+                         "del" : self.parse_remove,
                          "show" :   self.parse_show, 
                          "s" :   self.parse_show,
                          "update" : self.parse_update,
+                         "u" : self.parse_update,
                          "add" : self.parse_add,
+                         "a" : self.parse_add,
                       }
 
         if args[0] in self.dispatch:
             self.dispatch[args[0]](args[1:])
+        else:
+            help()
+            bailout("")
 
     def parse_create(self, args):
         listname = ""
@@ -193,9 +203,8 @@ class CommandParser(object):
             spldict["request"] = "delete-list"
             spldict["listname"] = listname
 
-            list.contents["deleted"] = 1
-            list.save()
-
+            list.remove()
+            
         create_spool_file(spldict)
         
     
@@ -203,49 +212,67 @@ class CommandParser(object):
 
         listname = ""
 
-        if len(args) == 0:
-            bailout("liszt update listname [optional entry index]")
+        if len(args) != 1:
+            bailout("liszt update listname")
 
         listname = args[0]
 
-        if len(args) == 1:
-            fd, filename = tempfile.mkstemp()
+        fd, filename = tempfile.mkstemp()
+        os.close(fd)
+        fd = open(filename, 'w+')
 
-            l = CachedList(listname)
-            entries = l.contents["contents"]
+        l = CachedList(listname)
+        entries = l.contents["contents"]
 
-            for entry in entries:
-                str = "+\t%s\t%s\t%s\n" % (entry["title"], entry["date"], entry["done"])
-                os.write(fd, str)
+            # unicode magic.
+        fd = codecs.getwriter(locale.getpreferredencoding())(fd)
 
-            editor = os.getenv("EDITOR")
-            os.system(editor + " " + filename)
-            os.close(fd)
+        for entry in entries:
+            str = "+\t%s\t%s\t%s\n" % (entry["title"], entry["date"], entry["done"])
+            fd.write(str)
+                
+        fd.close()
+
+        editor = os.getenv("EDITOR")
+        if editor == None:
+            editor = "vi"  # Not my editor of choice but it should work everywhere.
+        
+        os.system(("%s %s" % (editor, filename)))
+        
+        # Now, reopen the fd, as a python file handle.
+        fd = open(filename)
+        lines = fd.read().split('+')
             
-            # Now, reopen the fd, as a python file handle.
-            fd = open(filename)
-            lines = fd.read().split('+')
+        for i, line in enumerate(lines):
+            line = line.strip()
 
-            for i, line in enumerate(lines):
-                fields = line.split("\t")
-                if len(fields) != 4:
-                    bailout("Error at line %d : one of the fields is not correctly formatted." % i)
+            if line == "":
+                continue
 
-                dict = {"request" : "update-entry", "listname" : listname,
-                        "index" : i, "contents" : {"title" : fields[1], "date" : fields[2], "done": fields[3]}}
+            fields = line.split("\t")
 
-                create_spool_file(dict)
+            if len(fields) != 3:
+                bailout("Error at line %d : one of the fields is not correctly formatted." % i)
 
-                # Also update the cached list
-                try:
-                    with l.contents["contents"][i] as entry:
-                        entry["title"] = fields[1]
-                        entry["date"] = fields[2]
-                        entry["done"] = fields[3]
-                except IndexError:
-                    continue
+            dict = {"request" : "update-entry", "listname" : listname,
+                    "index" : i, "contents" : {"title" : fields[0], "date" : fields[1], "done": fields[2]}}
 
-            os.unlink(filename)
+            create_spool_file(dict)
+
+            # update the cached list
+            try:
+                l.contents["contents"][i]["title"] = fields[0]
+                l.contents["contents"][i]["date"] = fields[1]
+                l.contents["contents"][i]["done"] = fields[2]
+            except IndexError:
+                continue
+                
+        # and get rid of the element that got removed :
+        for i in range(len(l.contents["contents"]) - len(lines)):
+            l.contents["contents"].pop()
+
+        l.save()
+        os.unlink(filename)
 
     def parse_add(self, args):
         listname = ""
