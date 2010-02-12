@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 #coding=utf8
-from __future__ import with_statement
-# 
+
 
 import sys
 import os
@@ -9,8 +8,8 @@ from datetime import datetime
 import urllib, urllib2, cookielib
 from urllib import quote
 from urllib2 import HTTPError, URLError
-import subprocess
 import fnmatch
+import readline
 import tempfile
 import datetime
 import locale
@@ -38,7 +37,7 @@ def bailout(msg):
     sys.exit(-1)
 
 def create_spool_file(dict):
-# Create a spool file and save dict inside as a json dict.
+    # Create a spool file and save dict inside as a json dict.
     fd, filename = tempfile.mkstemp(dir=os.path.expanduser('~/.liszt/delayed/'))
     os.write(fd, json.dumps(dict))
     os.close(fd)
@@ -79,6 +78,24 @@ class CachedList(object):
         del self.cached_list
         
     contents = property(fget, fset, fdel)
+
+def glob_listname(pattern):
+
+    l = CachedList("lists_list")
+    lists = l.contents
+
+    while True:
+        lists = fnmatch.filter(lists, pattern)
+        if len(lists) == 0:
+            bailout("No list satisfied your pattern")
+        elif len(lists) == 1:
+            return lists[0]
+        else:
+            print "You pattern satisfied the following matches : "
+            for m in lists:
+                print m
+            pattern = unicode(raw_input("Narrow down your search with another pattern :"))
+            continue
 
 class CommandParser(object):
     def __init__(self, args):
@@ -152,7 +169,7 @@ class CommandParser(object):
     def parse_show(self, args):
         listname = ""
         entryname = ""
-
+        
         if len(args) == 0:
             print "List of the created lists :"
             lists_list = CachedList("lists_list")
@@ -163,14 +180,18 @@ class CommandParser(object):
                     print list
 
         if len(args) == 1:
-            list = CachedList(args[0])
+            listname = glob_listname(args[0])
+
+            list = CachedList(listname)
 
             for entry in list.contents["contents"]:
                 if "deleted" not in entry:
                     print entry["title"] + "\t" + entry["date"]
 
         elif len(args) == 2:
-            list = CachedList(args[0])
+            listname = glob_listname(args[0])
+
+            list = CachedList(listname)
             index = int(args[1])
             try:
                 entry = list.contents["contents"][index]
@@ -187,7 +208,7 @@ class CommandParser(object):
         index = ""
         spldict = {} # The dictionnary saved in a spool file.
 
-        listname = args[0]
+        listname = glob_listname(args[0])
         list = CachedList(listname)
 
         if len(args) == 2:
@@ -215,7 +236,8 @@ class CommandParser(object):
         if len(args) != 1:
             bailout("liszt update listname")
 
-        listname = args[0]
+
+        listname = glob_listname(args[0])
 
         fd, filename = tempfile.mkstemp()
         os.close(fd)
@@ -280,7 +302,7 @@ class CommandParser(object):
         if len(args) == 0:
             bailout("liszt add listname ")
 
-        listname = args[0]
+        listname = glob_listname(args[0])
 
         fd, filename = tempfile.mkstemp()
 
