@@ -10,7 +10,6 @@ import urllib, urllib2, cookielib
 from urllib import quote
 from urllib2 import HTTPError, URLError
 import subprocess
-from subprocess import Popen
 import fnmatch
 import tempfile
 import datetime
@@ -22,13 +21,15 @@ try:
 except ImportError:
     import simplejson as json                                                                                                                         
 
+# unicode magic.
 sys.stdout = codecs.getwriter(locale.getpreferredencoding())(sys.stdout)
 
 def help():
-    print "liszt c|create listname ?entryname? "
-    print "liszt r[remove|d|delete listname ?entryindex?"
-    print "liszt s listname ?entryindex?"
+    print "liszt c|create listname [optional entry text]"
+    print "liszt r[remove|delete listname [optional entry index]"
+    print "liszt s|show listname [optional entry index]"
     print "liszt chk|check listname index"
+    print "liszt a|add listname"
     print "liszt u|update listname"
     
 
@@ -63,7 +64,7 @@ class CachedList(object):
 
     def save(self):
         fd = open(os.path.expanduser('~/.liszt/cached/') + self.listname, 'w+')
-        json.dump(self.cached_list, fd, ensure_ascii=False)
+        json.dump(self.cached_list, fd, encoding="utf8")
     
     def fget(self):
         return self.cached_list
@@ -257,8 +258,10 @@ class CommandParser(object):
         fd, filename = tempfile.mkstemp()
 
         editor = os.getenv("EDITOR")
-        os.system(editor + " " + filename)
-        os.close(fd)
+        if editor == None:
+            editor = "vi"  # Not my editor of choice but it should work everywhere.
+        
+        os.system(("%s %s" % (editor, filename)))
         
         # Now, reopen the fd, as a python file handle.
         fd = open(filename)
@@ -268,7 +271,7 @@ class CommandParser(object):
             # fields = lines[i].split("\t")  FIXME: add support for different fields on a line.
             
             if line != '':
-                title = unicode(line.strip())
+                title = unicode(line.strip(), encoding="utf8")
                 dict = {"request" : "create-entry", "listname" : listname, "content" : {"title" : title}}
                 create_spool_file(dict)
                 cached_list = CachedList(listname)
