@@ -302,4 +302,5 @@ if __name__ == "__main__":
         help()
         sys.exit(0)
 
+    os.system("./liszt-daemon")
     parser = CommandParser(sys.argv[1:])

@@ -88,8 +88,7 @@ class Daemon:
 			pid = None
 	
 		if pid:
-			message = "pidfile %s already exist. Daemon already running?\n"
-			sys.stderr.write(message % self.pidfile)
+                    	# Exit silently
 			sys.exit(1)
 		
 		# Start the daemon
@@ -190,10 +189,13 @@ class LisztSession:
         return json.load(req)
 
     def get_list(self, listname):
+        req = None
+
         try:
             req = urllib2.urlopen(base + "/get/" + quote(listname) + "/")
-        except HTTPError:
+        except URLError:
             bailout("Unable to open the list " + listname)
+            sys.exit(-1)
 
         return json.load(req)
 
@@ -202,6 +204,7 @@ class LisztSession:
             req = urllib2.urlopen(base + "/get/" + quote(listname) + "/" + str(index) + "/")
         except HTTPError:
             bailout("Unable to get entry " + str(index) + " from list " + listname)
+            return
 
         return json.load(req)
 

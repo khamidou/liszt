@@ -31,6 +31,12 @@ conf.read(os.path.expanduser('~/.liszt/config'))
 username = conf.get('Credentials', 'username')
 password = conf.get('Credentials', 'password')
 
+session = LisztSession()
+session.login(username, password)
+
+
+update_interval = 30
+
 def process_json_delayed_file(path, session):
     try:
         fd = open(path)
@@ -71,7 +77,7 @@ def watch_spool_dir():
             process_json_delayed_file(os.path.expanduser('~/.liszt/delayed/') + file, session)
 
         
-        time.sleep(15 * 60) # Sync the files with the server every 15 minutes.
+        time.sleep(update_interval) # Sync the files with the server every 15 minutes.
 
 def cache_new_lists():
     # This thread caches lists that were recently created on the server but are not available
@@ -92,18 +98,18 @@ def cache_new_lists():
     cl.contents = list(cl.contents)
     cl.save()
 
-    time.sleep(15 * 60)
+    time.sleep(update_interval)
         
-def sync_cached_list(list):
-    def isentrydefined(title, list):
+def sync_cached_list(listname):
+    def isentrydefined(title, l):
         # Is an entry in a list ? Yes if it's title is in the list
-        for e in list:
+        for e in l:
             if e["title"] == title:
                 return True
 
         return False
 
-    cached_list = CachedList(list)
+    cached_list = CachedList(listname)
     server_list = session.get_list(listname)
 
     for entry in server_list:
@@ -116,18 +122,17 @@ def sync_cached_list(list):
         if not isentrydefined(entry["title"], cached_list.contents["contents"]):
             cached_list.contents["contents"].push(entry)
 
-    json.dump(fd)
+    cached_list.save()
     
-def watch_cache_dir(name, session):
+def watch_cache_dir():
     while True:
-        for list in os.listdir(os.path.expanduser('~/.liszt/cached/')):
-            sync_cached_list(list)
-        
-        time.sleep(20 * 60) # Sync the files with the server every 20 minutes.
+        for cached_list in os.listdir(os.path.expanduser('~/.liszt/cached/')):
+            if cached_list == "lists_list":
+                continue
 
-# class LisztDaemon(Daemon):
-#     def run(self):
-#         pass
+            sync_cached_list(cached_list)
+        
+        time.sleep(update_interval)
 
 class SpoolThread(threading.Thread):
     def run(self):
@@ -141,18 +146,18 @@ class SyncListsThread(threading.Thread):
     def run(self):
         watch_cache_dir()
 
+class LisztDaemon(Daemon):
+    def run(self):
+        st = SpoolThread()
+        st.start()
+
+        clt = CacheNewListsThread()
+        clt.start()
+
+        slt = SyncListsThread()
+        slt.start()
+
 if __name__ == "__main__":
-    session = LisztSession()
-    session.login(username, password)
-
-#    st = SpoolThread()
-#    st.run()
-
-    clt = CacheNewListsThread()
-    clt.run()
-
-#     slt = SyncListsThread()
-#     slt.run()
-    
-#    daemon = LisztDaemon(pidfile="/var/lock/liszt-daemon.pidfile")
-
+    daemon = LisztDaemon(pidfile="/var/lock/liszt-daemon.pidfile")
+    daemon.run()
+    daemon.start()
