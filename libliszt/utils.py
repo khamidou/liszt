@@ -4,6 +4,8 @@ import os, sys
 import urllib, urllib2, cookielib
 from urllib import quote
 from urllib2 import HTTPError, URLError
+import time
+from dateutil.parser import parse as parse_date
 import atexit
 from signal import SIGTERM 
 
@@ -17,6 +19,19 @@ base = "http://0.0.0.0:8080/api/v1"
 def bailout(msg):
     print msg
     return
+
+def sorted_dirlist(path):
+    def sortbyctime(a, b):
+        da = parse_date(a)
+        db = parse_date(b)
+        if (da > db):
+        	return 1
+        elif da == db:
+            	return 0
+        else:
+            	return -1
+
+    return sorted(os.listdir(path), cmp=sortbyctime)
 
 
 # The Daemon class comes from http://www.jejik.com/articles/2007/02/a_simple_unix_linux_daemon_in_python/
@@ -236,7 +251,14 @@ class CachedList(object):
             try:
                 self.cached_list = json.load(fd)
             except ValueError:
-                bailout("List <%s> is not a valid json file" % listname)
+            # Create it.
+                try:
+                    fd = open(os.path.expanduser('~/.liszt/cached/') + listname, 'w+')
+                except IOError:
+                    bailout("IOError when trying to create a cached list.")
+            
+                self.cached_list = {"name" : listname, "contents" : []}
+                
 
         except IOError:
             # Create it.

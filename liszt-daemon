@@ -17,7 +17,7 @@ import threading
 import time
 import ConfigParser
 
-from libliszt.utils import Daemon, LisztSession, CachedList
+from libliszt.utils import Daemon, LisztSession, CachedList, sorted_dirlist
 
 
 try:
@@ -52,7 +52,7 @@ def process_json_delayed_file(path, session):
         session.create_list(data["listname"])
     elif data["request"] == "create-entry":
         try:
-            session.create_list_entry(data["listname"], data["content"]["title"]) 	# FIXME : use the other options if defined.
+            session.create_list_entry(data["listname"], data["contents"]["title"]) 	# FIXME : use the other options if defined.
         except KeyError:
             return
 
@@ -60,12 +60,12 @@ def process_json_delayed_file(path, session):
         session.remove_list(data["listname"])
     elif data["request"] == "delete-entry":
         try:
-            session.remove_list_entry(data["listname"], data["content"]["index"])
+            session.remove_list_entry(data["listname"], data["contents"]["index"])
         except KeyError:
             return
     elif data["request"] == "update-entry":
         try:
-            session.update_list_entry(data["listname"], data["content"]["index"], data["content"])
+            session.update_list_entry(data["listname"], data["contents"]["index"], data["content"])
         except KeyError:
             return
         
@@ -73,7 +73,7 @@ def process_json_delayed_file(path, session):
 
 def watch_spool_dir():
     while True:
-        for file in os.listdir(os.path.expanduser('~/.liszt/delayed/')):
+        for file in sorted_dirlist(os.path.expanduser('~/.liszt/delayed/')):
             process_json_delayed_file(os.path.expanduser('~/.liszt/delayed/') + file, session)
 
         

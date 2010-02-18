@@ -3,6 +3,11 @@ This is liszt, a command line interface to the todoliszt.com api.
 liszt supports (at the moment) four modes of operation : showing, creating, removing a list or
 updating an element of a list.
 
+Requirements
+============
+
+python-dateutil, simplejson (usually included on all the recent python installations).
+
 Basic Usage
 ===========
 

@@ -12,8 +12,10 @@ import fnmatch
 import readline
 import tempfile
 import datetime
+import time
 import locale
 import codecs
+import subprocess
 from libliszt.utils import CachedList
 
 try:
@@ -38,10 +40,11 @@ def bailout(msg):
     sys.exit(-1)
 
 def create_spool_file(dict):
+    d = datetime.datetime.now()
     # Create a spool file and save dict inside as a json dict.
-    fd, filename = tempfile.mkstemp(dir=os.path.expanduser('~/.liszt/delayed/'))
-    os.write(fd, json.dumps(dict))
-    os.close(fd)
+    fd = open(os.path.expanduser('~/.liszt/delayed/') + d.isoformat(), 'w+')
+    json.dump(dict, fd)
+    fd.close()
     
 
 def glob_listname(pattern):
@@ -120,8 +123,8 @@ class CommandParser(object):
         else:
             spldict["request"] = "create-entry"
             spldict["listname"] = listname
-            spldict["content"] = dict()
-            spldict["content"]["title"] = entryname # FIXME : specify the other options.
+            spldict["contents"] = dict()
+            spldict["contents"]["title"] = entryname # FIXME : specify the other options.
 
             cached_list = CachedList(listname)
             entry = {"title" : entryname, "done" : 0, "date" : str(datetime.datetime.now())} # FIXME : specify the other options.
@@ -211,7 +214,7 @@ class CommandParser(object):
         l = CachedList(listname)
         entries = l.contents["contents"]
 
-            # unicode magic.
+        # unicode magic.
         fd = codecs.getwriter(locale.getpreferredencoding())(fd)
 
         for entry in entries:
@@ -229,10 +232,20 @@ class CommandParser(object):
         # Now, reopen the fd, as a python file handle.
         fd = open(filename)
         lines = fd.read().split('+')
-            
+
+        # Delete the list and recreate the entries.
+        dict = {"request" : "delete-list", "listname" : listname,}
+        create_spool_file(dict)
+        time.sleep(0.2) # Make sure that the list is removed before doing anything
+        # Recreate it
+        # Delete the list and recreate the entries.
+        dict = {"request" : "create-list", "listname" : listname,}
+        create_spool_file(dict)
+
+        l.contents["contents"] = []
+
         for i, line in enumerate(lines):
             line = line.strip()
-
             if line == "":
                 continue
 
@@ -241,22 +254,16 @@ class CommandParser(object):
             if len(fields) != 3:
                 bailout("Error at line %d : one of the fields is not correctly formatted." % i)
 
-            dict = {"request" : "update-entry", "listname" : listname,
+            dict = {"request" : "create-entry", "listname" : listname,
                     "index" : i, "contents" : {"title" : fields[0], "date" : fields[1], "done": fields[2]}}
 
             create_spool_file(dict)
-
+            
             # update the cached list
-            try:
-                l.contents["contents"][i]["title"] = fields[0]
-                l.contents["contents"][i]["date"] = fields[1]
-                l.contents["contents"][i]["done"] = fields[2]
-            except IndexError:
-                continue
-                
-        # and get rid of the element that got removed :
-        for i in range(len(l.contents["contents"]) - len(lines)):
-            l.contents["contents"].pop()
+
+            cdict = {"title" : fields[0], "date": fields[1], "done" : fields[2]}
+            l.contents["contents"].append(cdict)
+            time.sleep(0.2)
 
         l.save()
         os.unlink(filename)
@@ -286,7 +293,7 @@ class CommandParser(object):
             
             if line != '':
                 title = unicode(line.strip(), encoding="utf8")
-                dict = {"request" : "create-entry", "listname" : listname, "content" : {"title" : title}}
+                dict = {"request" : "create-entry", "listname" : listname, "contents" : {"title" : title}}
                 create_spool_file(dict)
                 cached_list = CachedList(listname)
 
@@ -301,6 +308,6 @@ if __name__ == "__main__":
     if len(sys.argv) <= 1:
         help()
         sys.exit(0)
-
-    os.system("./liszt-daemon")
+    
+    subprocess.Popen(["./liszt-daemon"])
     parser = CommandParser(sys.argv[1:])
