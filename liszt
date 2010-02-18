@@ -252,10 +252,12 @@ class CommandParser(object):
             fields = line.split("\t")
 
             if len(fields) != 3:
-                bailout("Error at line %d : one of the fields is not correctly formatted." % i)
-
-            dict = {"request" : "create-entry", "listname" : listname,
-                    "index" : i, "contents" : {"title" : fields[0], "date" : fields[1], "done": fields[2]}}
+                # Then, only take the first field :
+                dict = {"request" : "create-entry", "listname" : listname,
+                    "index" : i, "contents" : {"title" : fields[0]}}
+            else:
+                dict = {"request" : "create-entry", "listname" : listname,
+                        "index" : i, "contents" : {"title" : fields[0], "date" : fields[1], "done": fields[2]}}
 
             create_spool_file(dict)
             
