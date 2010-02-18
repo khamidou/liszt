@@ -218,7 +218,7 @@ class CommandParser(object):
         fd = codecs.getwriter(locale.getpreferredencoding())(fd)
 
         for entry in entries:
-            str = "+\t%s\t%s\t%s\n" % (entry["title"], entry["date"], entry["done"])
+            str = "*\t%s\t%s\t%s\n" % (entry["title"], entry["date"], entry["done"])
             fd.write(str)
                 
         fd.close()
@@ -231,7 +231,7 @@ class CommandParser(object):
         
         # Now, reopen the fd, as a python file handle.
         fd = open(filename)
-        lines = fd.read().split('+')
+        lines = fd.read().split('*')
 
         # Delete the list and recreate the entries.
         dict = {"request" : "delete-list", "listname" : listname,}
@@ -288,7 +288,7 @@ class CommandParser(object):
         
         # Now, reopen the fd, as a python file handle.
         fd = open(filename)
-        lines = fd.read().split('+')
+        lines = fd.read().split('*')
 
         for i, line in enumerate(lines):
             # fields = lines[i].split("\t")  FIXME: add support for different fields on a line.
