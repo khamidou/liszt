@@ -48,9 +48,54 @@ def create_spool_file(dict):
     
 
 def glob_listname(pattern):
+    pattern = pattern.strip()
 
     l = CachedList("lists_list")
     lists = l.contents
+
+    if pattern == "today":
+        datestr = datetime.datetime.now().strftime('%m-%d-%Y')
+
+        if pattern not in lists:
+            # Add the list locally
+            l = CachedList(datestr) # NB: CachedList implicitly creates a list if it doesn't exists            
+            lists.append(pattern)
+            l.save()
+
+            # Create a spool file to add it remotely :
+            dct = {"request" : "create-list", "listname" : datestr}
+            create_spool_file(dct)
+
+        return datestr
+    elif pattern == "yesterday":
+        datestr = (datetime.datetime.now() - datetime.timedelta(days=1)).strftime('%m-%d-%Y')
+
+        if pattern not in lists:
+            # Add the list locally
+            l = CachedList(datestr) # NB: CachedList implicitly creates a list if it doesn't exists            
+            lists.append(pattern)
+            l.save()
+
+            # Create a spool file to add it remotely :
+            dct = {"request" : "create-list", "listname" : datestr}
+            create_spool_file(dct)
+
+        return datestr
+    elif pattern == "tomorrow":
+        datestr = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%m-%d-%Y')
+
+        if pattern not in lists:
+            # Add the list locally
+            l = CachedList(datestr) # NB: CachedList implicitly creates a list if it doesn't exists            
+            lists.append(pattern)
+            l.save()
+
+            # Create a spool file to add it remotely :
+            dct = {"request" : "create-list", "listname" : datestr}
+            create_spool_file(dct)
+
+        return datestr
+
 
     while True:
         lists = fnmatch.filter(lists, pattern)
@@ -252,20 +297,23 @@ class CommandParser(object):
             fields = line.split("\t")
 
             if len(fields) != 3:
-                # Then, only take the first field :
+                # Then, only take the first field and give default values to the rest:
                 dict = {"request" : "create-entry", "listname" : listname,
                     "index" : i, "contents" : {"title" : fields[0]}}
+                cdict = {"title" : fields[0], "date": datetime.datetime.now().isoformat(), "done" : 0}
+                
             else:
                 dict = {"request" : "create-entry", "listname" : listname,
                         "index" : i, "contents" : {"title" : fields[0], "date" : fields[1], "done": fields[2]}}
 
+                cdict = {"title" : fields[0], "date": fields[1], "done" : fields[2]}
+
+
             create_spool_file(dict)
             
             # update the cached list
-
-            cdict = {"title" : fields[0], "date": fields[1], "done" : fields[2]}
             l.contents["contents"].append(cdict)
-            time.sleep(0.2)
+
 
         l.save()
         os.unlink(filename)
