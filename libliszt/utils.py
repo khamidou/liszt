@@ -14,7 +14,7 @@ try:
 except ImportError:
     import simplejson as json                                                                                                                         
 
-base = "http://0.0.0.0:8080/api/v1"
+base = "http://www.todoliszt.com/api/v1"
 
 def bailout(msg):
     print msg
