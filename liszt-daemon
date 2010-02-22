@@ -162,4 +162,5 @@ class LisztDaemon(Daemon):
 
 if __name__ == "__main__":
    daemon = LisztDaemon(pidfile="/var/lock/liszt-daemon.pidfile")
-   daemon.start()
+   daemon.run()
+#   daemon.start()
