@@ -35,7 +35,7 @@ session = LisztSession()
 session.login(username, password)
 
 
-update_interval = 10 * 60 # Please be nice on the server - A ten minutes interval should be good enough.
+update_interval = 5 # 5 second interval for devel is enough.
 
 def process_json_delayed_file(path, session):
     try:
