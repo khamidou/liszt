@@ -10,7 +10,7 @@ path = os.path.expanduser('~/.liszt/')
 if os.access(path, os.F_OK):
     # Get rid of the previously created directory.
     try:
-        shutil.rmtre(path)
+        shutil.rmtree(path)
     except OSError:
         print "Error : Unable to remove " + path
         sys.exit(-1)
