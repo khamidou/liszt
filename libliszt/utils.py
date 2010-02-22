@@ -14,7 +14,7 @@ try:
 except ImportError:
     import simplejson as json                                                                                                                         
 
-base = "http://localhost:8080/api/v1"
+base = "http://www.todoliszt.com/api/v1"
 
 def bailout(msg):
     print msg
@@ -174,8 +174,8 @@ class LisztSession:
             try:
                 urllib2.urlopen(base + "/login/", ed)
                 return
-            except URLError, HTTPError:
-                print "Unable to log you in"
+            except URLError, http_error:
+                print "Unable to log you in - http error code " + str(http_error.code)
                 time.sleep(5 * 60) # Try to reconnect every five minutes.
                 continue
 
