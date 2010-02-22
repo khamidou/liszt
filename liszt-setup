@@ -15,14 +15,11 @@ if os.access(path, os.F_OK):
         print "Error : Unable to remove " + path
         sys.exit(-1)
 
-    os.mkdir(path)
-    os.chdir(path)
-else:
-    os.mkdir(path)
-    os.chdir(path)
-    os.mkdir("delayed")
-    os.mkdir("cached")
-    os.system("echo [] > cached/lists_list")
+os.mkdir(path)
+os.chdir(path)
+os.mkdir("delayed")
+os.mkdir("cached")
+os.system("echo [] > cached/lists_list")
 
 config = ConfigParser.RawConfigParser()
 
