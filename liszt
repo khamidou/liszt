@@ -281,9 +281,8 @@ class CommandParser(object):
         # Delete the list and recreate the entries.
         dict = {"request" : "delete-list", "listname" : listname,}
         create_spool_file(dict)
-        time.sleep(0.2) # Make sure that the list is removed before doing anything
+
         # Recreate it
-        # Delete the list and recreate the entries.
         dict = {"request" : "create-list", "listname" : listname,}
         create_spool_file(dict)
 
