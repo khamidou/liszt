@@ -180,16 +180,12 @@ class LisztSession:
                 continue
 
     def create_list(self, listname):
-        listname = unicode(listname)
         try:
             urllib2.urlopen(base + "/create/" + quote(listname.encode("utf8")) + "/")
         except HTTPError:
             bailout("Unable to create the list " + listname)
 
     def create_list_entry(self, listname, entry):
-        listname = listname.encode("utf8")
-        entry = entry.encode("utf8")
-
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
         except HTTPError:
@@ -204,7 +200,6 @@ class LisztSession:
         return json.load(req)
 
     def get_list(self, listname):
-        listname = listname.encode("utf8")
         req = None
 
         try:
