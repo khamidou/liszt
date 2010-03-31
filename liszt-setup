@@ -38,4 +38,10 @@ except IOError:
 
 config.write(conffd)
 
-print "\nThe configuration file has been created. It's time to create lists !"
+print "\nThe configuration file has been created."
+
+print "Getting the lists from the server - this may take some time..."
+os.system("liszt-daemon --no-fork")
+
+print "\nOkay, it's time to create lists !"
+
