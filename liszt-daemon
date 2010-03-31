@@ -162,4 +162,9 @@ class LisztDaemon(Daemon):
 
 if __name__ == "__main__":
    daemon = LisztDaemon(pidfile="/var/lock/liszt-daemon.pidfile")
-   daemon.start()
+
+   if sys.argv[1] == "--no-fork":
+       daemon.run()
+   else:
+       daemon.start()
+
