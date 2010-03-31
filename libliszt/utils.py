@@ -201,6 +201,8 @@ class LisztSession:
 
     def get_list(self, listname):
         req = None
+        print type(listname)
+        listname = listname.encode("utf8")
 
         try:
             req = urllib2.urlopen(base + "/get/" + quote(listname) + "/")
