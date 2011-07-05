@@ -26,15 +26,15 @@ Basic Usage
 * Getting the contents of a list
 
   liszt show "my list" gets the contents of the list "my list".
-  Shortcuts : the name of the list is globbable (liszt show "my *" will print the same results) - if there are multiple matches, 
-  	      liszt will ask you a globbing sub-pattern to narrow down the search.
+  Shortcuts : the name of the list is globbable (liszt show "my *" will print the same results) - if there are 
+  multiple matches, liszt will ask you a globbing sub-pattern to narrow down the search.
   
 * Getting the contents of an entry
 
   liszt show "my list" entry_index displays the contents of the entry #entry_index.
   
-  The format of output of an entry is first the index of the entry in the list, then its description, its creation date and finally if it's done.
-  The fields are separated by tabs.
+  The format of output of an entry is first the index of the entry in the list, then its description, its creation date and 
+  finally if it's done. The fields are separated by tabs.
 
 * Removing a list
 
@@ -52,7 +52,7 @@ Basic Usage
 
   liszt update "my list"
 
-  Similarly to the 'add' option, update will open up a text editor with the content of the list "my list". The file format is similar to the one used with
-  the 'add' option : each entry begins with a + symbol. The contents of an entry are (in this order) : the text of an entry, a boolean indicating if it's
-  been done or not and a timestamp.
-  After saving and quitting, the list is automatically updated.
+Similarly to the 'add' option, update will open up a text editor with the contents of the list "my list". The file format is 
+similar to the one used with the 'add' option : each entry begins with a + symbol. The contents of an entry are (in this 
+order) : the text of an entry, a boolean indicating if it's been done or not and a timestamp. After saving and quitting, 
+the list is automatically updated.
