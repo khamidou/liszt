@@ -35,7 +35,7 @@ session = LisztSession()
 session.login(username, password)
 
 
-update_interval = 10 * 60 # Please be nice on the server - A ten minutes interval should be good enough.
+update_interval = 5 # 5 second interval for devel is enough.
 
 def process_json_delayed_file(path, session):
     try:
@@ -44,11 +44,12 @@ def process_json_delayed_file(path, session):
         return
 
     data = json.load(fd)
-
+    print data
     if "request" not in data or "listname" not in data:
         return # Discard incorrect files
 
     if data["request"] == "create-list":
+        print "let there be a list"
         session.create_list(data["listname"])
     elif data["request"] == "create-entry":
         try:
@@ -57,6 +58,7 @@ def process_json_delayed_file(path, session):
             return
 
     elif data["request"] == "delete-list":
+        print "let there be no list"
         session.remove_list(data["listname"])
     elif data["request"] == "delete-entry":
         try:
@@ -113,7 +115,6 @@ def sync_cached_list(listname):
     cached_list = CachedList(listname)
     server_list = session.get_list(listname)
 
-    print server_list
     for entry in server_list:
 
         if isinstance(entry, list): # Discard lists for the moment

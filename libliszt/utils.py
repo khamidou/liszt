@@ -174,22 +174,18 @@ class LisztSession:
             try:
                 urllib2.urlopen(base + "/login/", ed)
                 return
-            except URLError, HTTPError:
-                print "Unable to log you in"
+            except URLError, http_error:
+                print "Unable to log you in - http error code " + str(http_error.code)
                 time.sleep(5 * 60) # Try to reconnect every five minutes.
                 continue
 
     def create_list(self, listname):
-        listname = listname.encode("utf8")
         try:
-            urllib2.urlopen(base + "/create/" + quote(listname) + "/")
+            urllib2.urlopen(base + "/create/" + quote(listname.encode("utf8")) + "/")
         except HTTPError:
             bailout("Unable to create the list " + listname)
 
     def create_list_entry(self, listname, entry):
-        listname = listname.encode("utf8")
-        entry = entry.encode("utf8")
-
         try:
             urllib2.urlopen(base + "/create/" + quote(listname) + "/" + quote(entry) + "/")
         except HTTPError:
@@ -217,6 +213,8 @@ class LisztSession:
         return json.load(req)
 
     def get_entry(self, listname, index):
+        listname = listname.encode("utf8")
+
         try:
             req = urllib2.urlopen(base + "/get/" + quote(listname) + "/" + str(index) + "/")
         except HTTPError:
@@ -226,18 +224,23 @@ class LisztSession:
         return json.load(req)
 
     def remove_list(self, listname):
+        listname = listname.encode("utf8")
+
         try:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/")
         except HTTPError:
             bailout("Unable to remove the list " + listname)
 
     def remove_list_entry(self, listname, index):
+        listname = listname.encode("utf8")
+
         try:
             urllib2.urlopen(base + "/remove/" + quote(listname) + "/" + quote(index) + "/")
         except HTTPError:
             bailout("Unable to remove the entry " + index + "from list " + listname)
 
     def update_list_entry(self, listname, index, contents):
+        listname = listname.encode("utf8")
         ec = urllib.urlencode(contents)
         try:
             urllib2.urlopen(base + "/update/" + listname + "/" + str(index) + "/", ec)
